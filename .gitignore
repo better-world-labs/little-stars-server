@@ -1,0 +1,15 @@
+go.sum
+.idea
+*.exe
+*.tar.gz
+*.iml
+.DS_Store
+bin
+.vscode/settings.json
+*.pyc
+/vendor
+/bin
+k8s/k8s_*.yaml
+k8s/*.tmp
+
+dist
