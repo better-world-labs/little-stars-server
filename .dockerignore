@@ -1,0 +1,8 @@
+docs
+scripts
+/Dockerfile
+/README.md
+/Makefile
+/vendor
+/bin
+/.*

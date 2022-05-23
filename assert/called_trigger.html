@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
+    <meta name="format-detection" content="telephone=no"/>
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>拨打120急救电话</title>
+    <!-- import Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<style>
+    .star-btn {
+        text-align: center;
+        width: 100%;
+        height: 50px;
+        border-radius: 3px;
+        -moz-box-shadow: 2px 2px 5px #f38172;
+        -webkit-box-shadow: 2px 2px 5px #f38172;
+        box-shadow: 2px 2px 5px #f38172;
+        background-image: linear-gradient(to right, #FC7866FF, #fdb58e);
+        border: none;
+        color: #fff;
+        font-weight: bold;
+        font-size: 14px;
+        animation: click 0.3s infinite;
+    }
+
+    .star-btn:active {
+        -webkit-animation: click 0.3s infinite;
+        -moz-box-shadow: 2px 2px 5px #f38172 inset;
+        -webkit-box-shadow: 2px 2px 5px #f86753 inset;
+        box-shadow: 2px 2px 5px #f38172 inset;
+    }
+
+    .star-btn:disabled {
+        background-image: linear-gradient(to right, rgba(252, 120, 102, 0.5), rgba(253, 181, 142, 0.5));
+        -moz-box-shadow: 2px 2px 5px rgba(243, 129, 114, 0.5);
+        -webkit-box-shadow: 2px 2px 5px rgba(248, 103, 83, 0.5);
+        box-shadow: 2px 2px 5px rgba(243, 129, 114, 0.5);
+    }
+
+    /*.star-btn::after {*/
+    /*    content: '';*/
+    /*    width: 100%;*/
+    /*    height: 100%;*/
+    /*    position: absolute;*/
+    /*    background: inherit;*/
+    /*    top: 0.5rem;*/
+    /*    filter: blur(0.4rem);*/
+    /*    opacity: 0.7;*/
+    /*    z-index: -1;*/
+    /*}*/
+
+    body {
+        text-align: center;
+    }
+
+    body {
+        font-size: 62.5%;
+        font-family: "Microsoft YaHei", Arial, serif;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .viewport {
+        max-width: 640px;
+        min-width: 300px;
+        margin: 0 auto;
+    }
+</style>
+<body>
+<div id="app" style="text-align: center; padding: 10px; margin-top: 50%">
+    <el-form :model="ruleForm" status-icon ref="form" label-width="80px">
+        <div style="padding-bottom: 10px">
+            <el-alert
+                    v-if="success"
+                    :closable="false"
+                    title="系统已经收到"
+                    type="success"
+                    show-icon>
+            </el-alert>
+        </div>
+        <el-form-item label="验证信息" prop="mobile" :rules=rolesMobile>
+            <el-input maxlength="4" minlength="4" clearable type="number" placeholder="请输入手机号后4位" autocomplete="off"
+                      v-model="ruleForm.mobile"></el-input>
+        </el-form-item>
+        <button :disabled=success class="star-btn" @click="trigger" type="button">
+            我已拨打120急救电话
+        </button>
+    </el-form>
+</div>
+
+</body>
+
+<script>
+    const app = new Vue({
+        el: '#app',
+        data: () => {
+            return {
+                success: false,
+                aid: "{{.aid}}",
+                token: "{{.token}}",
+                rolesMobile: [
+                    {required: true, message: '请输入手机号后4位', trigger: 'blur'},
+                ],
+                ruleForm: {
+                    mobile: "",
+                },
+                phoneSuffix: ''
+            }
+        },
+        create() {
+        },
+        methods: {
+            trigger() {
+                this.$refs['form'].validate(function (valid) {
+                    console.log(valid)
+                    if (valid) {
+                        axios.post('/api/aid/aid-called/' + app.token + "/" + app.aid, {mobileLast4: app.ruleForm.mobile})
+                            .then(res => {
+                                let data = res.data;
+                                if (data.code !== 0) {
+                                    app.handleFailed(data.msg)
+                                } else {
+                                    app.handleSucceed()
+                                }
+                            }).catch((err) => {
+                            console.log("err", err)
+                        })
+                    }
+                })
+            },
+            handleFailed(msg) {
+                this.$message.error(msg);
+            },
+            handleSucceed() {
+                this.success = true
+                this.$message.success("操作成功");
+            }
+        }
+    });
+</script>
+</html>
