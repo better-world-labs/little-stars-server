@@ -14,7 +14,7 @@ const _1d = 24 * time.Hour
 const pageSize = 10
 
 func InitDbAndConfig() func() {
-	c, err := config.LoadConfig("../../../config-local.yaml")
+	c, err := config.LoadConfig("../../../")
 	if err != nil {
 		panic("get config error")
 	}

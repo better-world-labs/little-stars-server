@@ -10,16 +10,8 @@ func ReplyOK(c *gin.Context, data interface{}) {
 	HTTPComplete(c, http.StatusOK, NewResponseOk(data))
 }
 
-func ReplyApiError(c *gin.Context, httpStatus int, code int, msg string) {
-	ReplyError(c, NewApiError(code, msg, httpStatus))
-}
-
 func ReplyError(c *gin.Context, err interface{}) {
 	ReplyErrorWithData(c, err, nil)
-}
-
-func ReplyIllegalArgumentError(c *gin.Context, message string) {
-	ReplyErrorWithData(c, message, nil)
 }
 
 func ReplyErrorWithData(c *gin.Context, err interface{}, data interface{}) {

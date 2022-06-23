@@ -3,7 +3,7 @@ package utils
 import (
 	"errors"
 	"github.com/google/uuid"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 type PromiseProcessor = func() (interface{}, error)
@@ -26,7 +26,7 @@ func PromiseAll(fnList ...PromiseProcessor) ([]interface{}, error) {
 			defer func() {
 				if err := recover(); err != nil {
 					panicId := uuid.New().String()
-					log.DefaultLogger().Errorf("panic(%s): %v, %s", panicId, err, PanicTrace(1))
+					log.Errorf("panic(%s): %v, %s", panicId, err, PanicTrace(1))
 					errChan <- errors.New("has panic(" + panicId + ")")
 				}
 			}()

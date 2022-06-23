@@ -6,10 +6,10 @@ import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/interfaces/service"
+	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/base"
 	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/db"
-	"aed-api-server/internal/pkg/global"
 	"aed-api-server/internal/pkg/response"
 	"fmt"
 	"github.com/go-xorm/xorm"
@@ -19,43 +19,26 @@ type examService struct {
 	examRepository     ExamRepository
 	questionRepository QuestionRepository
 	questionsGenerator QuestionGenerator
-	projectService     service.ProjectService
-	certService        service.CertService
+
+	ProjectService service.ProjectService `inject:"-"`
+	CertService    service.CertService    `inject:"-"`
 }
 
-var (
-//ErrorExamUnSubmit   = base.NewError("exam.service", "an unsubmitted exam here")
-//ErrorExamOwnerError = base.NewError("exam.service", "invalid owner for this exam")
-)
-
-func Init(config *config.AppConfig) {
+func NewExamService(c *config.AppConfig) *examService {
 	repository := NewQuestionRepository()
 	exam := NewExamRepository()
 	var generator QuestionGenerator
-	if config.Exam.Debug {
+	if c.Exam.Debug {
 		generator = NewTestedQuestionGenerator(repository, exam)
 	} else {
 		generator = NewQuestionGenerator(repository, exam)
 	}
 
-	interfaces.S.Exam = NewExamService(
-		exam,
-		repository,
-		generator,
-	)
-}
-
-func NewExamService(exam ExamRepository, question QuestionRepository, generator QuestionGenerator) service.ExamService {
 	return &examService{
 		examRepository:     exam,
-		questionRepository: question,
+		questionRepository: repository,
 		questionsGenerator: generator,
-		projectService:     interfaces.S.Project,
 	}
-}
-
-func (e *examService) SetCertService(service service.CertService) {
-	e.certService = service
 }
 
 func (e *examService) Start(projectId int64, userId int64, examType int) (*domains.Exam, error) {
@@ -66,7 +49,7 @@ func (e *examService) Start(projectId int64, userId int64, examType int) (*domai
 	}
 
 	if exists {
-		return nil, global.ErrorExamUnSubmit
+		return nil, response.ErrorExamUnSubmit
 	}
 
 	return e.StartNewExam(projectId, userId, examType)
@@ -109,7 +92,7 @@ func (e *examService) Save(examID, userId int64, paper map[int64][]int) error {
 	}
 
 	if exam.Examiner != userId {
-		return global.ErrorExamOwnerError
+		return response.ErrorExamOwnerError
 	}
 
 	err = exam.SaveExam(paper)
@@ -133,7 +116,7 @@ func (e *examService) Submit(examID, userId int64, paper map[int64][]int) (strin
 	}
 
 	if exam.Examiner != userId {
-		return "", "", pointsRst, global.ErrorExamOwnerError
+		return "", "", pointsRst, response.ErrorExamOwnerError
 	}
 
 	excepted := *exam
@@ -246,12 +229,12 @@ func (e *examService) GetByID(examID int64) (*domains.Exam, bool, error) {
 }
 
 func (e *examService) handleFormalExamPassed(exam *domains.Exam) (string, string, error) {
-	err := e.projectService.DoCertification(exam.ProjectID, exam.Examiner)
+	err := e.ProjectService.DoCertification(exam.ProjectID, exam.Examiner)
 	if err != nil {
 		return "", "", nil
 	}
 
-	certImg, certNum, err := e.certService.CreateCert(exam.ProjectID, exam.Examiner)
+	certImg, certNum, err := e.CertService.CreateCert(exam.ProjectID, exam.Examiner)
 	if err != nil {
 		return "", "", err
 	}
@@ -276,17 +259,25 @@ func (e *examService) handleExamCompleted(session *xorm.Session, pointsRst *[]*e
 
 		level := MatchLevel(exams)
 		fmt.Printf("change level to %d", level)
-		err = e.projectService.UpdateUserProjectLevel(exam.ProjectID, exam.Examiner, level)
+		err = e.ProjectService.UpdateUserProjectLevel(exam.ProjectID, exam.Examiner, level)
 		if err != nil {
 			return "", "", err
 		}
 		pointsEvent := interfaces.S.PointsScheduler.BuildPointsEventTypeMockedExam(exam.Examiner, exam.ID, exam.Score)
-		event, err := interfaces.S.PointsScheduler.DealPointsEvent(pointsEvent)
+
+		times, err := interfaces.S.Points.GetUserPointsEventTimes(exam.Examiner, entities.PointsEventTypeExam)
 		if err != nil {
 			return "", "", err
 		}
 
-		*pointsRst = append(*pointsRst, event)
+		if times < pkg.UserPointsMaxTimesMockExam {
+			event, err := interfaces.S.PointsScheduler.DealPointsEvent(pointsEvent)
+			if err != nil {
+				return "", "", err
+			}
+
+			*pointsRst = append(*pointsRst, event)
+		}
 	}
 
 	// 认证考试通过
@@ -296,18 +287,25 @@ func (e *examService) handleExamCompleted(session *xorm.Session, pointsRst *[]*e
 			return "", "", err
 		}
 
-		event, err := interfaces.S.PointsScheduler.DealPointsEvent(&events.PointsEvent{
-			PointsEventType: entities.PointsEventTypeCertificated,
-			UserId:          exam.Examiner,
-			Params: map[string]interface{}{
-				"examId": exam.ID,
-			},
-		})
+		times, err := interfaces.S.Points.GetUserPointsEventTimes(exam.Examiner, entities.PointsEventTypeCertificated)
 		if err != nil {
 			return "", "", err
 		}
 
-		*pointsRst = append(*pointsRst, event)
+		if times < 1 {
+			event, err := interfaces.S.PointsScheduler.DealPointsEvent(&events.PointsEvent{
+				PointsEventType: entities.PointsEventTypeCertificated,
+				UserId:          exam.Examiner,
+				Params: map[string]interface{}{
+					"examId": exam.ID,
+				},
+			})
+			if err != nil {
+				return "", "", err
+			}
+
+			*pointsRst = append(*pointsRst, event)
+		}
 	}
 
 	return

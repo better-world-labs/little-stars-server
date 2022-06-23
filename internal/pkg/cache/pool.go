@@ -3,10 +3,10 @@ package cache
 import "github.com/gomodule/redigo/redis"
 
 type RedisConfig struct {
-	Server    string `yaml:"server"`
-	Password  string `yaml:"password"`
-	MaxIdle   int    `yaml:"max-idle"`
-	MaxActive int    `yaml:"max-active"`
+	Server    string `properties:"server"`
+	Password  string `properties:"password"`
+	MaxIdle   int    `properties:"max-idle"`
+	MaxActive int    `properties:"max-active"`
 }
 
 var pool *redis.Pool

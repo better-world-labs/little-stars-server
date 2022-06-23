@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 type WSServer struct {
@@ -43,7 +43,7 @@ func (handler *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	conn, err := handler.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.DefaultLogger().Errorf("upgrade error: %v", err)
+		log.Errorf("upgrade error: %v", err)
 		return
 	}
 	conn.SetReadLimit(int64(handler.maxMsgLen))
@@ -60,7 +60,7 @@ func (handler *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(handler.conns) >= handler.maxConnNum {
 		handler.mutexConns.Unlock()
 		conn.Close()
-		log.DefaultLogger().Errorf("too many connections")
+		log.Errorf("too many connections")
 		return
 	}
 	handler.conns[conn] = struct{}{}
@@ -81,27 +81,27 @@ func (handler *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (server *WSServer) Start() {
 	ln, err := net.Listen("tcp", server.Addr)
 	if err != nil {
-		log.DefaultLogger().Errorf("%v", err)
+		log.Errorf("%v", err)
 	}
 
 	if server.MaxConnNum <= 0 {
 		server.MaxConnNum = 100
-		log.DefaultLogger().Errorf("invalid MaxConnNum, reset to %v", server.MaxConnNum)
+		log.Errorf("invalid MaxConnNum, reset to %v", server.MaxConnNum)
 	}
 	if server.PendingWriteNum <= 0 {
 		server.PendingWriteNum = 100
-		log.DefaultLogger().Errorf("invalid PendingWriteNum, reset to %v", server.PendingWriteNum)
+		log.Errorf("invalid PendingWriteNum, reset to %v", server.PendingWriteNum)
 	}
 	if server.MaxMsgLen <= 0 {
 		server.MaxMsgLen = 4096
-		log.DefaultLogger().Errorf("invalid MaxMsgLen, reset to %v", server.MaxMsgLen)
+		log.Errorf("invalid MaxMsgLen, reset to %v", server.MaxMsgLen)
 	}
 	if server.HTTPTimeout <= 0 {
 		server.HTTPTimeout = 10 * time.Second
-		log.DefaultLogger().Errorf("invalid HTTPTimeout, reset to %v", server.HTTPTimeout)
+		log.Errorf("invalid HTTPTimeout, reset to %v", server.HTTPTimeout)
 	}
 	if server.NewAgent == nil {
-		log.DefaultLogger().Errorf("NewAgent must not be nil")
+		log.Errorf("NewAgent must not be nil")
 	}
 
 	if server.CertFile != "" || server.KeyFile != "" {
@@ -112,7 +112,7 @@ func (server *WSServer) Start() {
 		config.Certificates = make([]tls.Certificate, 1)
 		config.Certificates[0], err = tls.LoadX509KeyPair(server.CertFile, server.KeyFile)
 		if err != nil {
-			log.DefaultLogger().Errorf("%v", err)
+			log.Errorf("%v", err)
 		}
 
 		ln = tls.NewListener(ln, config)

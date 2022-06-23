@@ -3,84 +3,43 @@ package controller
 import (
 	"aed-api-server/internal/module/achievement"
 	"aed-api-server/internal/pkg"
-	"aed-api-server/internal/pkg/response"
 	"aed-api-server/internal/pkg/utils"
 	"github.com/gin-gonic/gin"
+	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 )
 
-type Controller struct {
+type AchievementController struct {
 }
 
-func NewController() *Controller {
-	return &Controller{}
+func NewAchievementController() *AchievementController {
+	return &AchievementController{}
 }
 
-func (con Controller) ListAllMedalMeta(c *gin.Context) {
+func (con AchievementController) MountAuthRouter(r *route.Router) {
+	// achievement
+	r.GET("/achievement/medals", con.ListAllMedalMeta)
+	r.GET("/achievement/user-medals", con.ListUsersMedal)
+	r.GET("/achievement/medal/toast", con.ListUsersMedalToast)
+}
+
+func (con AchievementController) ListAllMedalMeta(c *gin.Context) (interface{}, error) {
 	list, err := achievement.ListMedals()
 	utils.MustNil(err, err)
-	response.ReplyOK(c, map[string]interface{}{"medals": list})
+	return map[string]interface{}{"medals": list}, nil
 }
 
-func (con Controller) ListUsersMedal(c *gin.Context) {
+func (con AchievementController) ListUsersMedal(c *gin.Context) (interface{}, error) {
 	accountID := c.MustGet(pkg.AccountIDKey).(int64)
 	list, err := achievement.ListUsersMedal(accountID)
 	utils.MustNil(err, err)
 
-	response.ReplyOK(c, map[string]interface{}{"medals": list})
+	return map[string]interface{}{"medals": list}, nil
 }
 
-func (con Controller) CreateUsersMedalEvidences(c *gin.Context) {
-	//um, err := ListAll()
-	//utils.MustNil(err, err)
-	//
-	//for _, u := range um {
-	//	_, exist, err := con.evidenceService.GetEvidenceByBusinessKey(strconv.FormatInt(u.ID, 10), entities.EvidenceCategoryMedal)
-	//	if err != nil {
-	//		response.ReplyError(c, err)
-	//		return
-	//	}
-	//
-	//	if exist {
-	//		continue
-	//	}
-	//
-	//	account, err := con.userService.GetUserByID(u.UserID)
-	//	if err != nil {
-	//		response.ReplyError(c, err)
-	//		return
-	//	}
-	//
-	//	medal, exists, err := GetById(u.MedalID)
-	//	if err != nil {
-	//		response.ReplyError(c, err)
-	//		return
-	//	}
-	//
-	//	if !exists {
-	//		response.ReplyError(c, errors.New("medal not found"))
-	//		return
-	//	}
-	//
-	//	errChan := evidenceService.CreateEvidenceAsync(&claim.Medal{
-	//		Mobile: account.Mobile,
-	//		Medal:  "见义勇为",
-	//	}, "见义勇为", account.ID, entities.EvidenceCategoryMedal, strconv.FormatInt(u.ID, 10))
-	//
-	//	if err := <-errChan; err != nil {
-	//		if err != nil {
-	//			response.ReplyError(c, err)
-	//			return
-	//		}
-	//	}
-	//}
-
-	response.ReplyOK(c, nil)
-}
-
-func (con Controller) ListUsersMedalToast(c *gin.Context) {
+func (con AchievementController) ListUsersMedalToast(c *gin.Context) (interface{}, error) {
 	accountID := c.MustGet(pkg.AccountIDKey).(int64)
 	list, err := achievement.ListUsersMedalToast(accountID)
 	utils.MustNil(err, err)
 
-	response.ReplyOK(c, map[string]interface{}{"medals": list})
+	return map[string]interface{}{"medals": list}, nil
 }

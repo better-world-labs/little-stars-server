@@ -15,8 +15,8 @@ import (
 func TestJwt(t *testing.T) {
 	u := uuid.New()
 	fmt.Println(u.ID())
-	expiresIn := int64(120)
-	id := int64(49)
+	expiresIn := int64(999999999999)
+	id := int64(50)
 	user.InitJwt("this is a testing key", expiresIn)
 	fmt.Println(strings.ReplaceAll(uuid.NewString(), "-", ""))
 	newString := uuid.NewString()

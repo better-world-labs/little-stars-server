@@ -1,5 +1,7 @@
 package async
 
+import "aed-api-server/internal/pkg/utils"
+
 //var pool *Pool
 
 //func Start(config Config) error {
@@ -14,8 +16,7 @@ package async
 
 func RunTask(f func() (interface{}, error)) *Future {
 	future := newFuture()
-
-	go func() {
+	utils.Go(func() {
 		defer close(future.resultChan)
 
 		result, err := f()
@@ -24,7 +25,7 @@ func RunTask(f func() (interface{}, error)) *Future {
 		} else {
 			future.resultChan <- result
 		}
-	}()
+	})
 
 	return future
 }

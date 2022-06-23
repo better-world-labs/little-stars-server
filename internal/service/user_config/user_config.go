@@ -1,7 +1,6 @@
 package user_config
 
 import (
-	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg/db"
 	"encoding/json"
@@ -9,14 +8,12 @@ import (
 	"time"
 )
 
-func init() {
-	if interfaces.S.UserConfig == nil {
-		interfaces.S.UserConfig = &Service{}
-	}
-}
-
 type Service struct {
 	service.UserConfigService
+}
+
+func NewUserConfigService() *Service {
+	return &Service{}
 }
 
 type UserConfigDO struct {

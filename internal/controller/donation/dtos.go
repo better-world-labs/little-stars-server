@@ -8,13 +8,13 @@ import (
 
 type (
 	Dto struct {
-		entities.Donation
-
-		ProcessPercent float32               `json:"processPercent"`
-		StartAt        global.FormattedTime  `json:"startAt"`
-		CompleteAt     *global.FormattedTime `json:"completeAt"`
-		ExpiredAt      global.FormattedTime  `json:"expiredAt"`
-		CreatedAt      global.FormattedTime  `json:"createdAt"`
+		entities.Donation                        //TODO 废弃
+		ProcessPercent    float32                `json:"processPercent"` //TODO 废弃
+		StartAt           global.FormattedTime   `json:"startAt"`        //TODO 废弃
+		CompleteAt        *global.FormattedTime  `json:"completeAt"`     //TODO 废弃
+		ExpiredAt         global.FormattedTime   `json:"expiredAt"`      //TODO 废弃
+		CreatedAt         global.FormattedTime   `json:"createdAt"`      //TODO 废弃
+		Record            map[string]interface{} `json:"record"`
 	}
 
 	WithDonatedDto struct {

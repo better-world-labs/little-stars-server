@@ -1,28 +1,31 @@
 package friends
 
 import (
-	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg"
-	"aed-api-server/internal/pkg/response"
 	"github.com/gin-gonic/gin"
+	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 )
 
 type Controller struct {
-	service service.FriendsService
+	Service service.FriendsService `inject:"-"`
 }
 
 func NewController() *Controller {
-	return &Controller{interfaces.S.Friends}
+	return &Controller{}
 }
 
-func (con *Controller) ListFriendsPoints(ctx *gin.Context) {
+func (con *Controller) MountAuthRouter(r *route.Router) {
+	friendsGroup := r.Group("/friends")
+	friendsGroup.GET("/add-points", con.ListFriendsPoints)
+}
+
+func (con *Controller) ListFriendsPoints(ctx *gin.Context) (interface{}, error) {
 	userId := ctx.MustGet(pkg.AccountIDKey).(int64)
-	points, err := con.service.ListFriendsPoints(userId)
+	points, err := con.Service.ListFriendsPoints(userId)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
-	response.ReplyOK(ctx, NewPointsDto(points))
+	return NewPointsDto(points), nil
 }

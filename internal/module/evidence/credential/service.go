@@ -3,7 +3,7 @@ package credential
 import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg/base"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	openapi "gitlab.openviewtech.com/openview-pub/gopkg/open-api"
 	"go.uber.org/zap/buffer"
 )
@@ -17,7 +17,7 @@ func NewService(config openapi.Config) Service {
 }
 
 func (s *service) CreateCredential(claim entities.IClaim) (*Info, error) {
-	log.DefaultLogger().Infof("CreateCredential: cptId=%d, claims=%v", claim.CptID(), claim)
+	log.Infof("CreateCredential: cptId=%d, claims=%v", claim.CptID(), claim)
 
 	var resp = map[string]interface{}{}
 	err := openapi.RestRequest(s.config, "/open/api/credential/create_evi", map[string]interface{}{

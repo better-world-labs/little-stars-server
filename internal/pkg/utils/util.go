@@ -1,10 +1,10 @@
 package utils
 
-import "gitlab.openviewtech.com/openview-pub/gopkg/log"
+import log "github.com/sirupsen/logrus"
 
 func MustNil(i interface{}, wrap error) {
 	if i != nil {
-		log.DefaultLogger().Errorf("%v", i)
+		log.Errorf("%v", i)
 		panic(wrap)
 	}
 }

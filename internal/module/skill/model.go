@@ -1,7 +1,6 @@
 package skill
 
 import (
-	"aed-api-server/internal/pkg/global"
 	"time"
 )
 
@@ -35,24 +34,4 @@ type UserProject struct {
 	CertImg    string    // 通过后认证证书图片
 	Points     float64   // 获得积分
 	Updated    time.Time `xorm:"updated"`
-}
-
-type UserCert struct {
-	Id          int
-	AccountId   int64
-	ProjectId   int
-	ProjectName string
-	Uid         string
-	Img         string
-	Created     global.FormattedTime `json:"time,omitempty"`
-}
-
-type UserCertEntity struct {
-	Id          int
-	AccountId   int64
-	ProjectId   int
-	ProjectName string
-	Uid         string
-	Img         map[string]interface{}
-	Created     global.FormattedTime `json:"time,omitempty"`
 }

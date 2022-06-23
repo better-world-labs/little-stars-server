@@ -4,7 +4,7 @@ import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/pkg/domain/emitter"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 func InitEventHandler() {

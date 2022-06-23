@@ -4,8 +4,8 @@ import (
 	"aed-api-server/internal/pkg/base"
 	"encoding/json"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dysmsapi"
+	log "github.com/sirupsen/logrus"
 	"gitlab.openviewtech.com/openview-pub/gopkg/error2"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
 )
 
 var client *dysmsapi.Client
@@ -43,7 +43,7 @@ func SendSms(mobile string, templateCode string, data map[string]string) error {
 	response, err := client.SendSms(request)
 	error2.MustNil(err)
 	if response.Code != "OK" {
-		log.DefaultLogger().Warnf("respone incorrect: %s, msg: %s", response.Code, response.Message)
+		log.Warnf("respone incorrect: %s, msg: %s", response.Code, response.Message)
 		if response.Code == "isv.BUSINESS_LIMIT_CONTROL" {
 			return base.NewError(Module, "request overflow")
 		}

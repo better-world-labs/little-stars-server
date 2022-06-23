@@ -1,12 +1,11 @@
 package exam
 
 import (
-	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/feedback"
-	"aed-api-server/internal/pkg/response"
 	"github.com/gin-gonic/gin"
+	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 	"strconv"
 )
 
@@ -21,57 +20,59 @@ type (
 )
 
 type Controller struct {
-	service service.ExamService
+	Service service.ExamService `inject:"-"`
 }
 
-func NewController(cert service.CertService) *Controller {
-	// TODO 临时方式，后边修改依赖编排方式
-	interfaces.S.Exam.SetCertService(cert)
-	return &Controller{service: interfaces.S.Exam}
+func NewController() *Controller {
+	return &Controller{}
 }
 
-func (con *Controller) Start(ctx *gin.Context) {
+func (con *Controller) MountAuthRouter(r *route.Router) {
+	r.GET("/projects/:projectId/exams/submitted", con.ListSubmitted)
+	r.GET("/projects/:projectId/exams/unsubmitted/latest", con.GetUnSubmittedLatest)
+	r.POST("/projects/:projectId/exams", con.Start)
+	r.POST("/projects/exams/:examId/save", con.Save)
+	r.POST("/projects/exams/:examId/submit", con.Submit)
+	r.GET("/projects/exams/:examId", con.GetByID)
+}
+
+func (con *Controller) Start(ctx *gin.Context) (interface{}, error) {
 	userId := ctx.MustGet(pkg.AccountIDKey).(int64)
 	var p ParamStart
 	projectId := ctx.Param("projectId")
 
-	err := ctx.BindJSON(&p)
+	err := ctx.ShouldBindJSON(&p)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
 	projectIdInt64, err := strconv.ParseInt(projectId, 10, 64)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
-	exam, err := con.service.Start(projectIdInt64, userId, p.Type)
+	exam, err := con.Service.Start(projectIdInt64, userId, p.Type)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
-	response.ReplyOK(ctx, NewStartExamVo(*exam))
+	return NewStartExamVo(*exam), nil
 }
 
-func (con *Controller) Save(ctx *gin.Context) {
+func (con *Controller) Save(ctx *gin.Context) (interface{}, error) {
 	userId := ctx.MustGet(pkg.AccountIDKey).(int64)
 	examId := ctx.Param("examId")
 	var p struct {
 		Questions []ParamAnswer `json:"questions"`
 	}
-	err := ctx.BindJSON(&p)
+	err := ctx.ShouldBindJSON(&p)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
 	examIdInt, err := strconv.ParseInt(examId, 10, 64)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
 	var paper = map[int64][]int{}
@@ -79,31 +80,28 @@ func (con *Controller) Save(ctx *gin.Context) {
 		paper[q.ID] = q.Answers
 	}
 
-	err = con.service.Save(examIdInt, userId, paper)
+	err = con.Service.Save(examIdInt, userId, paper)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
-	response.ReplyOK(ctx, nil)
+	return nil, nil
 }
 
-func (con *Controller) Submit(ctx *gin.Context) {
+func (con *Controller) Submit(ctx *gin.Context) (interface{}, error) {
 	userId := ctx.MustGet(pkg.AccountIDKey).(int64)
 	examId := ctx.Param("examId")
 	var p struct {
 		Questions []ParamAnswer `json:"questions"`
 	}
-	err := ctx.BindJSON(&p)
+	err := ctx.ShouldBindJSON(&p)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
 	examIdInt, err := strconv.ParseInt(examId, 10, 64)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
 	var paper = map[int64][]int{}
@@ -111,23 +109,20 @@ func (con *Controller) Submit(ctx *gin.Context) {
 		paper[q.ID] = q.Answers
 	}
 
-	certImg, certNum, pointsRst, err := con.service.Submit(examIdInt, userId, paper)
+	certImg, certNum, pointsRst, err := con.Service.Submit(examIdInt, userId, paper)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
-	exam, exists, err := con.service.GetByID(examIdInt)
+	exam, exists, err := con.Service.GetByID(examIdInt)
 	if err != nil || !exists {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
 	back := feedback.NewValuableFeedBack()
 	err = back.AddPointsEventRsts(pointsRst)
 	if err != nil || !exists {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
 	back.Put("score", exam.Score)
@@ -135,10 +130,10 @@ func (con *Controller) Submit(ctx *gin.Context) {
 	back.Put("certId", certNum)
 	back.Put("certImg", certImg)
 
-	response.ReplyOK(ctx, back)
+	return back, nil
 }
 
-func (con *Controller) ListSubmitted(ctx *gin.Context) {
+func (con *Controller) ListSubmitted(ctx *gin.Context) (interface{}, error) {
 	userId := ctx.MustGet(pkg.AccountIDKey).(int64)
 	query := struct {
 		Latest int `form:"latest"`
@@ -148,20 +143,17 @@ func (con *Controller) ListSubmitted(ctx *gin.Context) {
 
 	projectId, err := strconv.ParseInt(projectIdStr, 10, 64)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
-	err = ctx.BindQuery(&query)
+	err = ctx.ShouldBindQuery(&query)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
-	exams, err := con.service.ListLatestSubmitted(projectId, userId, query.Type, query.Latest)
+	exams, err := con.Service.ListLatestSubmitted(projectId, userId, query.Type, query.Latest)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
 	vos := make([]SimpleListInfoDto, len(exams))
@@ -169,12 +161,12 @@ func (con *Controller) ListSubmitted(ctx *gin.Context) {
 		vos[i] = ParseSimpleListInfoDto(e)
 	}
 
-	response.ReplyOK(ctx, map[string]interface{}{
+	return map[string]interface{}{
 		"exams": vos,
-	})
+	}, nil
 }
 
-func (con *Controller) GetUnSubmittedLatest(ctx *gin.Context) {
+func (con *Controller) GetUnSubmittedLatest(ctx *gin.Context) (interface{}, error) {
 	userId := ctx.MustGet(pkg.AccountIDKey).(int64)
 	var query struct {
 		Type int `form:"type" binding:"required,min=1,max=2"`
@@ -183,47 +175,40 @@ func (con *Controller) GetUnSubmittedLatest(ctx *gin.Context) {
 	projectIdStr := ctx.Param("projectId")
 	projectId, err := strconv.ParseInt(projectIdStr, 10, 64)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
-	err = ctx.BindQuery(&query)
+	err = ctx.ShouldBindQuery(&query)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
-	exam, exists, err := con.service.GetLatestUnSubmitted(projectId, userId, query.Type)
+	exam, exists, err := con.Service.GetLatestUnSubmitted(projectId, userId, query.Type)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
 	if !exists {
-		response.ReplyOK(ctx, nil)
-		return
+		return nil, nil
 	}
 
-	response.ReplyOK(ctx, ParseSimpleListInfoWithQuestionDto(exam))
+	return ParseSimpleListInfoWithQuestionDto(exam), nil
 }
 
-func (con *Controller) GetByID(ctx *gin.Context) {
+func (con *Controller) GetByID(ctx *gin.Context) (interface{}, error) {
 	idStr := ctx.Param("examId")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
-	exam, exists, err := con.service.GetByID(id)
+	exam, exists, err := con.Service.GetByID(id)
 	if err != nil {
-		response.ReplyError(ctx, err)
-		return
+		return nil, err
 	}
 
 	if !exists {
-		response.ReplyOK(ctx, nil)
-		return
+		return nil, nil
 	}
 
-	response.ReplyOK(ctx, ParseDetailDTo(exam))
+	return ParseDetailDTo(exam), nil
 }

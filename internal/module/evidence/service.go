@@ -1,14 +1,14 @@
 package evidence
 
 import (
-	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
+	service2 "aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/module/evidence/credential"
 	"aed-api-server/internal/module/evidence/credential/claim"
-	"aed-api-server/internal/module/user"
 	"aed-api-server/internal/pkg/base"
 	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/db"
+	"aed-api-server/internal/pkg/utils"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
@@ -17,22 +17,18 @@ import (
 )
 
 type service struct {
-	credentialService credential.Service
-	storage           Storage
-	api               Api
-	accountService    user.Service
+	storage Storage
+	api     Api
+
+	CredentialService credential.Service      `inject:"-"`
+	AccountService    service2.UserServiceOld `inject:"-"`
 }
 
-func Init(conf *config.AppConfig) {
-	interfaces.S.Evidence = NewService(*conf)
-}
-func NewService(config config.AppConfig) *service {
+func NewService(config *config.AppConfig) *service {
 	uuid2.InitSnowFlake(int64(uuid.New().ID()) % 1023)
 	return &service{
-		credentialService: credential.NewService(config.CredentialConfig),
-		api:               NewApi(config.EvidenceConfig),
-		accountService:    user.NewService(nil),
-		storage:           NewStorage(),
+		api:     NewApi(config.EvidenceConfig),
+		storage: NewStorage(),
 	}
 }
 
@@ -40,7 +36,7 @@ func (s service) CreateCertEvidenceAsync(accountID int64, uid string, desc strin
 	errChan := make(chan error, 1)
 	go func() {
 		defer close(errChan)
-		account, err := s.accountService.GetUserByID(accountID)
+		account, err := s.AccountService.GetUserByID(accountID)
 		if err != nil {
 			errChan <- err
 			return
@@ -63,7 +59,7 @@ func (s service) CreateCertEvidenceAsync(accountID int64, uid string, desc strin
 }
 
 func (s *service) CreateEvidence(credentialClaim entities.IClaim, name string, accountID int64, category entities.EvidenceCategory, businessKey string) error {
-	credentialInfo, err := s.credentialService.CreateCredential(credentialClaim)
+	credentialInfo, err := s.CredentialService.CreateCredential(credentialClaim)
 	if err != nil {
 		return base.WrapError("evidence.service", "CreateCredential error", err)
 	}
@@ -127,6 +123,8 @@ func (s *service) GetEvidenceByBusinessKey(businessKey string, category entities
 }
 
 func (s *service) CreateTextEvidence(name string, accountID int64, category entities.EvidenceCategory, businessKey string, payload map[string]interface{}) error {
+	defer utils.TimeStat("CreateTextEvidence")()
+
 	evidence, err := s.api.CreateTextEvidence(name, payload)
 	if err != nil {
 		return err

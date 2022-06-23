@@ -5,7 +5,7 @@ import (
 	"aed-api-server/internal/pkg/crypto"
 	"errors"
 	"github.com/imroc/req"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 type WechatClient interface {
@@ -13,6 +13,7 @@ type WechatClient interface {
 	GetAccessToken(code string, data *OAuthAccessTokenDTO) error
 	GetUserInfo(accessToken string, openID string, data *OAuthInfoDTO) error
 	CodeToSession(code string) (*Code2SessionRes, error)
+	Decrypt(encryptedData, iv, sessionKey string, dst interface{}) error
 }
 
 func NewWechatClient(config *config.WechatOAuthConfig) WechatClient {
@@ -32,7 +33,7 @@ type wechatClient struct {
 // @param data 绑定结果的指针
 // @return OAuthInfoDTo, error
 func (c *wechatClient) GetAccessToken(code string, data *OAuthAccessTokenDTO) error {
-	log.DefaultLogger().Debugf("get access token: code=%s", code)
+	log.Debugf("get access token: code=%s", code)
 	param := req.QueryParam{
 		"appid":      c.Config.AppID,
 		"secret":     c.Config.AppSecret,
@@ -41,27 +42,27 @@ func (c *wechatClient) GetAccessToken(code string, data *OAuthAccessTokenDTO) er
 	}
 
 	if data == nil {
-		log.DefaultLogger().Errorf("bind data with nil pointer")
+		log.Errorf("bind data with nil pointer")
 		return errors.New("bind data with nil pointer")
 	}
 
 	resp, err := req.Get(c.Config.Server+"/sns/oauth2/access_token", param)
 	if err != nil {
-		log.DefaultLogger().Errorf("get access token error: %v", err)
+		log.Errorf("get access token error: %v", err)
 		return err
 	}
 
 	if str, err := resp.ToString(); err == nil {
-		log.DefaultLogger().Debugf("response: %s", str)
+		log.Debugf("response: %s", str)
 	}
 
 	if err = resp.ToJSON(data); err != nil {
-		log.DefaultLogger().Errorf("get access token error: %v", err)
+		log.Errorf("get access token error: %v", err)
 		return err
 	}
 
 	if data.ErrorCode != 0 {
-		log.DefaultLogger().Errorf("get access token with error code: %d", data.ErrorCode)
+		log.Errorf("get access token with error code: %d", data.ErrorCode)
 		return errors.New("get access token with error code")
 	}
 
@@ -82,7 +83,7 @@ func (c *wechatClient) CodeToSession(code string) (*Code2SessionRes, error) {
 	}
 
 	if str, err := resp.ToString(); err == nil {
-		log.DefaultLogger().Debugf("[wechat] code2Session response: %s", str)
+		log.Debugf("[wechat] code2Session response: %s", str)
 	}
 
 	var res Code2SessionRes
@@ -93,8 +94,13 @@ func (c *wechatClient) CodeToSession(code string) (*Code2SessionRes, error) {
 	return &res, nil
 }
 
+func (c *wechatClient) Decrypt(encryptedData, iv, sessionKey string, dst interface{}) error {
+	_, err := c.crypt.Decrypt(encryptedData, iv, sessionKey, dst)
+	return err
+}
+
 func (c *wechatClient) MiniProgramCode2Session(code string, encryptPhone string, iv string, data *MiniProgramResponseDTO) error {
-	log.DefaultLogger().Debugf("code2Session: code=%s", code)
+	log.Debugf("code2Session: code=%s", code)
 
 	session, err := c.CodeToSession(code)
 	if err != nil {
@@ -123,10 +129,10 @@ func (c *wechatClient) MiniProgramCode2Session(code string, encryptPhone string,
 // @param data 绑定结果的指针
 // @return error
 func (c *wechatClient) GetUserInfo(accessToken string, openID string, data *OAuthInfoDTO) error {
-	log.DefaultLogger().Debugf("get user info: openID=%s, accessToken=%s", openID, accessToken)
+	log.Debugf("get user info: openID=%s, accessToken=%s", openID, accessToken)
 
 	if data == nil {
-		log.DefaultLogger().Errorf("bind data with nil pointer")
+		log.Errorf("bind data with nil pointer")
 		return errors.New("bind data with nil pointer")
 	}
 
@@ -136,21 +142,21 @@ func (c *wechatClient) GetUserInfo(accessToken string, openID string, data *OAut
 	})
 
 	if err != nil {
-		log.DefaultLogger().Errorf("get user info error: %v", err)
+		log.Errorf("get user info error: %v", err)
 		return err
 	}
 
 	if str, err := resp.ToString(); err == nil {
-		log.DefaultLogger().Debugf("response: %s", str)
+		log.Debugf("response: %s", str)
 	}
 
 	if err = resp.ToJSON(data); err != nil {
-		log.DefaultLogger().Errorf("get user info error: %v", err)
+		log.Errorf("get user info error: %v", err)
 		return err
 	}
 
 	if data.ErrorCode != 0 {
-		log.DefaultLogger().Errorf("get user info with error code: %d", data.ErrorCode)
+		log.Errorf("get user info with error code: %d", data.ErrorCode)
 		return errors.New("get user info with error code")
 	}
 

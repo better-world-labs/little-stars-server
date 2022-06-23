@@ -1,7 +1,6 @@
 package project
 
 import (
-	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/interfaces/service"
@@ -12,14 +11,7 @@ import (
 	"time"
 )
 
-func init() {
-	if interfaces.S.Course == nil {
-		interfaces.S.Course = &CourseService{}
-	}
-}
-
 type CourseService struct {
-	service.CourseService
 }
 
 const (
@@ -27,6 +19,10 @@ const (
 	courseTableName     = "project_course"
 	courseUserTableName = "project_course_user"
 )
+
+func NewCourseService() *CourseService {
+	return &CourseService{}
+}
 
 type CourseDO struct {
 	Id        int      `json:"id"`

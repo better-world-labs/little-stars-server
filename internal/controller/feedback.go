@@ -4,8 +4,8 @@ import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg"
-	"aed-api-server/internal/pkg/response"
 	"github.com/gin-gonic/gin"
+	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 	"io"
 	"log"
 	"time"
@@ -13,24 +13,35 @@ import (
 
 type FeedbackController struct{}
 
-func (FeedbackController) SubmitFeedback(c *gin.Context) {
+func NewFeedbackController() *FeedbackController {
+	return &FeedbackController{}
+}
+
+func (c FeedbackController) MountAuthRouter(r *route.Router) {
+	r.Group("/user-feedbacks").
+		POST("/", c.SubmitFeedback)
+}
+
+func (c FeedbackController) MountAdminRouter(r *route.Router) {
+	r.GET("/user-feedbacks/excel", c.ExportFeedback)
+}
+
+func (FeedbackController) SubmitFeedback(c *gin.Context) (interface{}, error) {
 	var feedback entities.Feedback
 
 	if err := c.ShouldBindJSON(&feedback); err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
 	userId := c.MustGet(pkg.AccountIDKey).(int64)
 	err := interfaces.S.Feedback.SubmitFeedback(userId, &feedback)
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
 
-	response.ReplyOK(c, nil)
+	return nil, nil
 }
 
-func (FeedbackController) ExportFeedback(c *gin.Context) {
+func (FeedbackController) ExportFeedback(c *gin.Context) (interface{}, error) {
 	type Params struct {
 		BeginDate time.Time `form:"beginDate"`
 		EndDate   time.Time `form:"endDate"`
@@ -39,8 +50,7 @@ func (FeedbackController) ExportFeedback(c *gin.Context) {
 	var params Params
 
 	if err := c.ShouldBindQuery(&params); err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, nil
 	}
 
 	fileName := "用户反馈导出.xlsx"
@@ -55,4 +65,6 @@ func (FeedbackController) ExportFeedback(c *gin.Context) {
 	if _, err := io.Copy(c.Writer, reader); err != nil {
 		log.Fatal(err)
 	}
+
+	return nil, nil
 }

@@ -6,17 +6,17 @@ import (
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/utils"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/xuri/excelize/v2"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
 	"io"
 	"time"
 )
 
-func Init() {
-	interfaces.S.Feedback = &service{}
-}
-
 type service struct{}
+
+func NewService() *service {
+	return &service{}
+}
 
 type FeedbackDO struct {
 	UserId    int64

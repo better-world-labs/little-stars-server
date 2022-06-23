@@ -2,6 +2,11 @@ package entities
 
 import "encoding/json"
 
+const (
+	DeviceSourceLocal    = 0
+	DeviceSourceImported = 1
+)
+
 type (
 	AddDevice struct {
 		Longitude        float64     `json:"longitude,omitempty"`
@@ -57,6 +62,7 @@ type (
 		State            int           `json:"state,omitempty"`
 		CredibleState    int           `json:"credibleState" xorm:"credible_state"`
 		Created          int64         `json:"created" xorm:"created"`
+		Source           int           `json:"-" xorm:"source"`
 		CreateBy         int64         `json:"createBy" xorm:"create_by"`
 		OpenIn           TimeRange     `json:"openIn" xorm:"open_in"`
 		Inspector        []*SimpleUser `json:"inspector" xorm:"-"`

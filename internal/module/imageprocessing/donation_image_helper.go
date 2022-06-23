@@ -2,8 +2,8 @@ package imageprocessing
 
 import (
 	"aed-api-server/internal/interfaces"
+	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/module/img"
-	"aed-api-server/internal/module/user"
 	"aed-api-server/internal/pkg/asserts"
 	"aed-api-server/internal/pkg/star"
 	"aed-api-server/internal/pkg/utils"
@@ -22,7 +22,7 @@ const (
 	MaxLineRunes = 15
 )
 
-func DrawDonationShare(donationId int64, u *user.User, w *io.PipeWriter) error {
+func DrawDonationShare(donationId int64, u *entities.User, w *io.PipeWriter) error {
 	donation, exists, err := interfaces.S.Donation.GetDonationDetail(donationId)
 	if err != nil {
 		return err

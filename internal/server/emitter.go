@@ -7,6 +7,7 @@ import (
 	"aed-api-server/internal/module/speech"
 	"aed-api-server/internal/service/merit_tree/task_bubble"
 	"aed-api-server/internal/service/point"
+	"aed-api-server/internal/service/task"
 )
 
 func initEventHandler() {
@@ -16,4 +17,5 @@ func initEventHandler() {
 	activity.InitEventHandler()
 	task_bubble.InitEventHandler()
 	achievement.InitEventHandler()
+	task.InitEventHandler()
 }

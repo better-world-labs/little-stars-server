@@ -1,16 +1,10 @@
 package imageprocessing
 
 import (
-	"aed-api-server/internal/module/aid"
-	"aed-api-server/internal/module/user"
 	"github.com/disintegration/imaging"
 	"image"
 	"image/draw"
 )
-
-func Init() {
-	aidService = aid.NewService(user.NewService(nil))
-}
 
 func drawMedal(dst draw.Image, medal image.Image, light image.Image) {
 	medal = imaging.Resize(medal, 250, 250, imaging.Lanczos)

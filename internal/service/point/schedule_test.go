@@ -17,7 +17,7 @@ import (
 )
 
 func initMiddlewares() func() {
-	c, err := config.LoadConfig("../../../config-local.yaml")
+	c, err := config.LoadConfig("../../../")
 	if err != nil {
 		panic("get config error")
 	}

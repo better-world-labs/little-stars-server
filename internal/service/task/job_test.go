@@ -1,7 +1,7 @@
 package task
 
 import (
-	"aed-api-server/internal/interfaces/service"
+	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg/db"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -11,7 +11,7 @@ import (
 func mkData() {
 	mkTaskData()
 	//有时间限制的 且 未结束 且 未完成 且 已读
-	saveJob(&service.Job{
+	saveJob(&entities.Job{
 		UserId:      testUserId,
 		TaskId:      testTaskId,
 		IsRead:      True,
@@ -24,7 +24,7 @@ func mkData() {
 	})
 
 	//有时间限制的 且 结束 且 未完成 且 已读
-	saveJob(&service.Job{
+	saveJob(&entities.Job{
 		UserId:      testUserId,
 		TaskId:      testTaskId,
 		IsRead:      True,
@@ -37,7 +37,7 @@ func mkData() {
 	})
 
 	//有时间限制的 且 结束 且 完成 且 已读
-	saveJob(&service.Job{
+	saveJob(&entities.Job{
 		UserId:      testUserId,
 		TaskId:      testTaskId,
 		IsRead:      True,
@@ -49,7 +49,7 @@ func mkData() {
 	})
 
 	//有时间限制的 且 未结束 且 未完成 且 未读
-	saveJob(&service.Job{
+	saveJob(&entities.Job{
 		UserId:      testUserId,
 		TaskId:      testTaskId,
 		IsRead:      False,
@@ -61,7 +61,7 @@ func mkData() {
 	})
 
 	//有时间限制的 且 未结束 且 完成 且 未读
-	saveJob(&service.Job{
+	saveJob(&entities.Job{
 		UserId:      testUserId,
 		TaskId:      testTaskId,
 		IsRead:      False,
@@ -87,7 +87,7 @@ func Test_Job(t *testing.T) {
 	t.Cleanup(InitDbAndConfig())
 	t.Run("saveJob", func(t *testing.T) {
 		t.Cleanup(reset())
-		err := saveJob(&service.Job{
+		err := saveJob(&entities.Job{
 			UserId:      testUserId,
 			TaskId:      testTaskId,
 			IsRead:      True,
@@ -138,7 +138,7 @@ func Test_Job(t *testing.T) {
 		job, err := findUserTaskByUserIdAndDeviceId(testUserId, testDeviceId)
 		assert.Nil(t, err)
 
-		err = completeJob(testUserId, job.Id)
+		_, err = completeJob(testUserId, job.Id)
 		assert.Nil(t, err)
 
 		existed = userHasUnCompletePicketJob(testUserId, testDeviceId)

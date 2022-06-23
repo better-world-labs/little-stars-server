@@ -1,7 +1,7 @@
 package domains
 
 import (
-	"aed-api-server/internal/pkg/global"
+	"aed-api-server/internal/pkg/response"
 	"time"
 )
 
@@ -18,18 +18,18 @@ const (
 
 type (
 	Exam struct {
-		ID          int64
-		Type        int
-		ProjectID   int64
-		Examiner    int64
-		CreatedAt   time.Time
-		CompletedAt *time.Time
-		Completed   bool
-		Score       int
+		ID              int64
+		Type            int
+		ProjectID       int64
+		Examiner        int64
+		CreatedAt       time.Time
+		CompletedAt     *time.Time
+		Completed       bool
+		Score           int
 		QuestionsSorted []int64
 
 		//questionsIndex map[int64]int
-		questions   map[int64]*QuestionPaper
+		questions map[int64]*QuestionPaper
 	}
 )
 
@@ -45,7 +45,7 @@ func ParseExam(id int64,
 	completed bool,
 	score int,
 ) (*Exam, error) {
-	exam := NewExam(Type, projectID, examiner,sortedIndex, questions)
+	exam := NewExam(Type, projectID, examiner, sortedIndex, questions)
 	err := exam.InsertAnswer(paper)
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func (e *Exam) GetQuestionPaper(questionID int64) (*QuestionPaper, bool) {
 
 func (e *Exam) SaveExam(paper map[int64][]int) error {
 	if e.Completed {
-		return global.ErrorAlreadyCompleted
+		return response.ErrorAlreadyCompleted
 	}
 
 	return e.InsertAnswer(paper)
@@ -104,7 +104,7 @@ func (e *Exam) InsertAnswer(paper map[int64][]int) error {
 	for questionID, answers := range paper {
 		q, exists := e.GetQuestionPaper(questionID)
 		if !exists {
-			return global.ErrorUnknownQuestion
+			return response.ErrorUnknownQuestion
 		}
 
 		q.Answers = answers
@@ -127,7 +127,7 @@ func (e *Exam) CheckPass() bool {
 
 func (e *Exam) complete() error {
 	if e.Completed {
-		return global.ErrorAlreadyCompleted
+		return response.ErrorAlreadyCompleted
 	}
 
 	now := time.Now()

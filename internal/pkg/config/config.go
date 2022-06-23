@@ -1,21 +1,23 @@
 package config
 
 import (
-	"gopkg.in/yaml.v2"
-	"os"
+	"github.com/magiconair/properties"
+	"gitlab.openviewtech.com/openview-pub/gopkg/conf"
 )
 
-func LoadConfig(filename string) (*AppConfig, error) {
+func LoadConfig(baseDir string, envArr ...string) (*AppConfig, error) {
+	x, _, err := LoadConfigX(baseDir, envArr...)
+	return x, err
+}
+
+func LoadConfigX(baseDir string, envArr ...string) (*AppConfig, *properties.Properties, error) {
+	var env = "local"
+	if len(envArr) > 0 {
+		env = envArr[0]
+	}
+	pros := conf.Init(baseDir, env)
+
 	var config AppConfig
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	err = yaml.NewDecoder(f).Decode(&config)
-	if err != nil {
-		return nil, err
-	}
-
-	return &config, nil
+	err := pros.Decode(&config)
+	return &config, pros, err
 }

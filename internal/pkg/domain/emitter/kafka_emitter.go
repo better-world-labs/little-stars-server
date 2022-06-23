@@ -7,13 +7,14 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
 )
 
 const (
 	_eventTypeTag = "event-type"
+	_traceIdTag   = "trace-id"
 )
 
 type (
@@ -127,9 +128,9 @@ func (e *KafkaEmitter) startReportLoop() {
 		switch ev := e.(type) {
 		case *kafka.Message:
 			if ev.TopicPartition.Error != nil {
-				log.Printf("[emitter.KafkaEmitter] Delivery failed: %v\n", ev.TopicPartition)
+				log.Infof("[emitter.KafkaEmitter] Delivery failed: %v\n", ev.TopicPartition)
 			} else {
-				log.Printf("[emitter.KafkaEmitter] Delivered message to %v\n", ev.TopicPartition)
+				log.Infof("[emitter.KafkaEmitter] Delivered message to %v\n", ev.TopicPartition)
 			}
 		}
 	}
@@ -139,19 +140,19 @@ func (e *KafkaEmitter) startReadLoop() {
 	defer func() {
 		err := recover()
 		if err != nil {
-			log.Printf("[emitter.KafkaEmitter] ReedLoop error: %v\n %s", err, utils.PanicTrace(2))
+			log.Infof("[emitter.KafkaEmitter] ReedLoop error: %v\n %s", err, utils.PanicTrace(2))
 		}
 
 		if e.closed {
 			e.producer.Close()
-			log.Printf("[emitter.KafkaEmitter] producer closed\n")
+			log.Infof("[emitter.KafkaEmitter] producer closed\n")
 
 			err := e.consumer.Close()
 			if err != nil {
-				log.Printf("[emitter.KafkaEmitter] consumer close error: %v\n", err)
+				log.Infof("[emitter.KafkaEmitter] consumer close error: %v\n", err)
 			}
 
-			log.Printf("[emitter.KafkaEmitter] consumer closed\n")
+			log.Infof("[emitter.KafkaEmitter] consumer closed\n")
 		} else {
 			e.startReadLoop()
 		}
@@ -165,7 +166,11 @@ func (e *KafkaEmitter) startReadLoop() {
 		default:
 			message, err := e.consumer.ReadMessage(5 * time.Second)
 			if err == nil {
-				e.kafkaMessageDeal(message)
+				traceId, _ := getHeader(message, _traceIdTag)
+				utils.SetTraceId(traceId, func() {
+					log.Infof("receive msg:%v", message)
+					e.kafkaMessageDeal(message)
+				})
 			} else {
 				switch err.(type) {
 				case kafka.Error:
@@ -175,7 +180,7 @@ func (e *KafkaEmitter) startReadLoop() {
 					continue
 				}
 
-				log.Printf("[emitter.KafkaEmitter] ReadMessage error: %v\n", err)
+				log.Infof("[emitter.KafkaEmitter] ReadMessage error: %v\n", err)
 			}
 		}
 	}
@@ -194,12 +199,16 @@ func (e *KafkaEmitter) Emit(events ...DomainEvent) error {
 					Key:   _eventTypeTag,
 					Value: []byte(eventType),
 				},
+				{
+					Key:   _traceIdTag,
+					Value: []byte(utils.GetTraceId()),
+				},
 			},
 			Value:          msgValue,
 			TopicPartition: kafka.TopicPartition{Topic: &e.topic, Partition: kafka.PartitionAny},
 		}
 
-		log.Printf("EmitEvent: type=%s, message=%s\n", eventType, msgValue)
+		log.Infof("EmitEvent: type=%s, message=%s\n", eventType, msgValue)
 		return e.kafkaPublishMessage(kafkaMsg)
 	}
 
@@ -219,7 +228,7 @@ func (e *KafkaEmitter) kafkaPublishMessage(msg *kafka.Message) error {
 func (e *KafkaEmitter) kafkaMessageDeal(msg *kafka.Message) {
 	messageType, exists := getHeader(msg, _eventTypeTag)
 	if !exists {
-		log.Printf("[emitter.KafkaEmitter] eventType not found\n")
+		log.Infof("[emitter.KafkaEmitter] eventType not found\n")
 		e.commitMessage(msg)
 		return
 	}
@@ -232,14 +241,14 @@ func (e *KafkaEmitter) kafkaMessageDeal(msg *kafka.Message) {
 
 	if keeper.decoder == nil {
 		e.commitMessage(msg)
-		log.Printf("[emitter.KafkaEmitter] decoder for type %s not found\n", messageType)
+		log.Infof("[emitter.KafkaEmitter] decoder for type %s not found\n", messageType)
 		return
 	}
 
 	var futures []*async.Future
 	domainEvent, err := keeper.decoder.Decode(msg.Value)
 	if err != nil {
-		log.Printf("[emitter.KafkaEmitter] message decode error: %v\n", err) // Decode error
+		log.Infof("[emitter.KafkaEmitter] message decode error: %v\n", err) // Decode error
 		e.commitMessage(msg)
 		return
 	}
@@ -271,7 +280,7 @@ func (e *KafkaEmitter) kafkaMessageDeal(msg *kafka.Message) {
 func (e *KafkaEmitter) doDeadLetterQueue(msg *kafka.Message, messageType string, evt DomainEvent, err error) {
 	err = e.handleKafkaMessageFailed(msg, messageType, evt, err)
 	if err != nil {
-		log.Printf("[emitter.KafkaEmitter] handleKafkaMessageFailed: topic=%s, mesageType=%s, value=%s\n", *msg.TopicPartition.Topic, messageType, msg.Value)
+		log.Infof("[emitter.KafkaEmitter] handleKafkaMessageFailed: topic=%s, mesageType=%s, value=%s\n", *msg.TopicPartition.Topic, messageType, msg.Value)
 		return
 	}
 
@@ -281,7 +290,7 @@ func (e *KafkaEmitter) doDeadLetterQueue(msg *kafka.Message, messageType string,
 func (e *KafkaEmitter) commitMessage(message *kafka.Message) {
 	_, err := e.consumer.CommitMessage(message)
 	if err != nil {
-		log.Printf("[emitter.KafkaEmitter] message value = %s commit failed: %v\n", message.Value, err)
+		log.Infof("[emitter.KafkaEmitter] message value = %s commit failed: %v\n", message.Value, err)
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 	"aed-api-server/internal/pkg/domain/emitter"
 	"aed-api-server/internal/pkg/utils"
 	"errors"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 

@@ -2,6 +2,7 @@ package skill
 
 import (
 	_ "aed-api-server/internal/pkg/db"
+	"aed-api-server/internal/service"
 	"testing"
 )
 
@@ -10,7 +11,7 @@ func initData() {
 	initExamData()
 }
 
-var s = NewService(nil, nil)
+var s = service.NewService(nil, nil)
 
 func Test_SaveExamToDb(t *testing.T) {
 	// initData()

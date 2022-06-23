@@ -32,4 +32,6 @@ type PointsScheduler interface {
 
 	//BuildPointsEventWalk 构造步行的积分事件
 	BuildPointsEventWalk(userId int64, todayWalk int, convertWalk int, convertedPoints int) *events.PointsEvent
+
+	BuildPointsEventTypeReward(userId int64, jobId int64, points int, description string) *events.PointsEvent
 }

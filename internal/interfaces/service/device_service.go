@@ -4,6 +4,7 @@ import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg/location"
 	page "aed-api-server/internal/pkg/query"
+	"io"
 )
 
 type DeviceService interface {
@@ -91,4 +92,8 @@ type DeviceService interface {
 	HasTodayAddDevice(userId int64) (bool, error)
 
 	UpdateDeviceOpenIn(deviceId string, openIn entities.TimeRange) error
+
+	ImportDevices(reader io.Reader) error
+
+	SyncDevices() error
 }

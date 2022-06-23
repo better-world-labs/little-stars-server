@@ -11,9 +11,14 @@ import (
 func main() {
 	flags := []cli.Flag{
 		&cli.StringFlag{
-			Name:  "c",
-			Value: "config-local.yaml",
-			Usage: "config file name",
+			Name:  "b",
+			Value: ".",
+			Usage: "-b ${baseDir}",
+		},
+		&cli.StringFlag{
+			Name:  "e",
+			Value: "local",
+			Usage: "-e ${environment}",
 		},
 	}
 
@@ -23,17 +28,9 @@ func main() {
 	}
 
 	app.Name = "Openviewtech AED Api Service"
-	app.Usage = "DID & VC Repository"
-	app.Version = "1.2.1"
-	app.Copyright = "(c) 2021 openviewtech"
+	app.Version = "1.10.0"
+	app.Copyright = "(c) 2022 openviewtech"
 	app.EnableBashCompletion = true
-	app.Commands = []*cli.Command{
-		{
-			Name:   "run",
-			Flags:  flags,
-			Action: command.Run,
-		},
-	}
 
 	if err := app.Run(os.Args); err != nil {
 		fmt.Println(err)

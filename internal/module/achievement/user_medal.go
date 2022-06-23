@@ -1,7 +1,6 @@
 package achievement
 
 import (
-	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/global"
 	"github.com/go-xorm/xorm"
@@ -77,8 +76,8 @@ func CreateUsersMedal(session *xorm.Session, medal *UserMedal) error {
 
 type service struct{}
 
-func init() {
-	interfaces.S.UserMedal = &service{}
+func NewUserMedalService() *service {
+	return &service{}
 }
 
 func (m *service) GetUserMedalUrl(userId int64) ([]string, error) {

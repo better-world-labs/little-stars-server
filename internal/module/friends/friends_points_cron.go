@@ -5,18 +5,18 @@ import (
 	"aed-api-server/internal/pkg/cache"
 	"aed-api-server/internal/pkg/domain/emitter"
 
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 func doCron() {
-	ok, lock, err := cache.GetDistributeLock("LOCK_FRIENDS_POINTS_CRON", 5000)
+	lock, err := cache.GetDistributeLock("LOCK_FRIENDS_POINTS_CRON", 5000)
 	if err != nil {
 		log.Info("[friends.cron]", "doCron error: ", err)
 	}
 
 	defer lock.Release()
 
-	if ok {
+	if lock.Locked() {
 		err := handleFriendsPoints()
 		if err != nil {
 			log.Error("doCron error: ", err)

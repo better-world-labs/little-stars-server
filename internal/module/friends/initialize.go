@@ -1,7 +1,6 @@
 package friends
 
 import (
-	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/pkg/domain/emitter"
@@ -10,7 +9,6 @@ import (
 )
 
 func Init() {
-	interfaces.S.Friends = NewService()
 	emitter.On(&events.FirstLoginEvent{}, handleNewUserLogin)
 	emitter.On(&entities.Trace{}, handleNewTraceCreated)
 	initCron()

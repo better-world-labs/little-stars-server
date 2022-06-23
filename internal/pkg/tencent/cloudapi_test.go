@@ -35,11 +35,11 @@ func Test_QueryDeviceTbl(t *testing.T) {
 }
 
 func Test_AddDevice(t *testing.T) {
-	udid, err := AddDevice(30.657789, 104.065795, "测试设备3", "detailAddress", []string{"1.png", "2.png", "3.png", "4.png"})
-	_ = udid
-	if err != nil {
-		t.Error("Test_AddDevice failed")
-	}
+	//udid, err := AddDevice(30.657789, 104.065795, "测试设备3", "detailAddress", []string{"1.png", "2.png", "3.png", "4.png"})
+	//_ = udid
+	//if err != nil {
+	//	t.Error("Test_AddDevice failed")
+	//}
 }
 
 func Test_SearchMapDevice(t *testing.T) {
@@ -55,7 +55,7 @@ func Test_SearchMapDevice(t *testing.T) {
 }
 
 func Test_UpdateDevice(t *testing.T) {
-	UpdateDevice("95d58ad6-d5d0-4ae8-b60e-da8454123431", 10, 10, "test", "detailAddress", []string{"1.png", "2.png", "3.png", "4.png"})
+	//UpdateDevice("95d58ad6-d5d0-4ae8-b60e-da8454123431", 10, 10, "test", "detailAddress", []string{"1.png", "2.png", "3.png", "4.png"})
 }
 
 func Test_DelDevice(t *testing.T) {
@@ -63,7 +63,9 @@ func Test_DelDevice(t *testing.T) {
 }
 
 func Test_ListDevice(t *testing.T) {
-	ListDevice(0, 10)
+	device, err := ListDevice(1, 10)
+	require.Nil(t, err)
+	fmt.Println(device)
 }
 
 func Test_DistanceCompute(t *testing.T) {

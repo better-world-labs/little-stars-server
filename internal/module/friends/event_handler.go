@@ -8,7 +8,7 @@ import (
 	"aed-api-server/internal/pkg/domain/emitter"
 	"errors"
 	"github.com/go-xorm/xorm"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 func handleNewUserLogin(event emitter.DomainEvent) error {

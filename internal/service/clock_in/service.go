@@ -11,16 +11,14 @@ import (
 	"aed-api-server/internal/pkg/global"
 	"aed-api-server/internal/pkg/location"
 	"aed-api-server/internal/pkg/utils"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
 const clockInTableName = "device_clock_in"
 
-func init() {
-	if interfaces.S.ClockIn == nil {
-		interfaces.S.ClockIn = &Service{}
-	}
+func NewService() *Service {
+	return &Service{}
 }
 
 type Service struct {
@@ -130,7 +128,7 @@ func (s Service) DoDeviceClockIn(info *entities.ClockInBaseInfo, userId int64) (
 	}
 
 	log.Info("DoDeviceClockIn", "user has clockIn", times, "times")
-	if times <= pkg.UserPointsMaxTimesDeviceClockIn {
+	if times < pkg.UserPointsMaxTimesDeviceClockIn {
 		pointRst, err := interfaces.S.PointsScheduler.DealPointsEvent(event)
 		if err != nil {
 			return nil, err

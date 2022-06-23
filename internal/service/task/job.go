@@ -1,19 +1,23 @@
 package task
 
 import (
+	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
-	"aed-api-server/internal/interfaces/service"
+	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/pkg/db"
+	"aed-api-server/internal/pkg/domain/emitter"
+	"aed-api-server/internal/pkg/url_args"
 	"aed-api-server/internal/pkg/utils"
-	"strings"
-
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	"encoding/json"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
 	JobTableName        = "task_job"
 	JOB_STATUS_INIT     = 0
 	JOB_STATUS_COMPLETE = 10
+
+	ScanVideoToCompletedProcess = 90
 )
 
 func getUserJobs(userId int64, pageSize int, status []int, beginId int64, includeExpired bool) ([]*entities.UserTask, error) {
@@ -46,6 +50,7 @@ func getUserJobs(userId int64, pageSize int, status []int, beginId int64, includ
 			and job.user_id = ?
 			` + condition + `
 			and status in (` + db.ArrayPlaceholder(len(status)) + `)
+			and not_show = 0
 		order by id desc
 		limit ?`
 
@@ -103,15 +108,6 @@ func findUserTaskByUserIdAndDeviceId(userId int64, deviceId string) (*entities.U
 	return &job, err
 }
 
-func arrayPlaceholder(arr []int) string {
-	n := len(arr)
-	p := make([]string, n)
-	for i := 0; i < n; i++ {
-		p[i] = "?"
-	}
-	return strings.Join(p, ",")
-}
-
 func readUserTask(jobId int64, userId int64) error {
 	conn := db.GetSession()
 	_, err := conn.Exec(`update task_job set is_read = 1 where id = ? and user_id = ?`, jobId, userId)
@@ -121,8 +117,8 @@ func readUserTask(jobId int64, userId int64) error {
 	return nil
 }
 
-func findUserTaskStat(userId int64) (*service.UserTaskStat, error) {
-	stat := service.UserTaskStat{}
+func findUserTaskStat(userId int64) (*entities.UserTaskStat, error) {
+	stat := entities.UserTaskStat{}
 	_, err := db.SQL(`
 		select
 			count(if(is_read = 0, 1, null)) as unread,
@@ -153,7 +149,7 @@ func userHasUnCompletePicketJob(userId int64, deviceId string) bool {
 	return has
 }
 
-func saveJob(job *service.Job) error {
+func saveJob(job *entities.Job) error {
 	_, err := db.GetSession().Table(JobTableName).Insert(job)
 	if err != nil {
 		return err
@@ -161,8 +157,8 @@ func saveJob(job *service.Job) error {
 	return nil
 }
 
-func completeJob(userId int64, jobId int64) error {
-	_, err := db.Exec(`
+func completeJob(userId int64, jobId int64) (bool, error) {
+	rst, err := db.Exec(`
 		update task_job 
 		set 
 			status = 10,
@@ -171,5 +167,110 @@ func completeJob(userId int64, jobId int64) error {
 			id = ? 
 			and user_id = ? 
 			and status = 0`, jobId, userId)
-	return err
+
+	affected, err := rst.RowsAffected()
+	return affected == 1, err
+}
+
+func findJobByUserIdAndLink(userId int64, link string) (job *entities.Job, keyHash string, err error) {
+	keyHash = buildKeyHash(userId, link)
+
+	jobs := make([]*entities.Job, 0)
+	err = db.Table("task_job").Where("key_hash = ? and status = 0", keyHash).Find(&jobs)
+	if err != nil {
+		return nil, keyHash, err
+	}
+
+	for _, job = range jobs {
+		var evt events.UserOpenTreasureChest
+		err = json.Unmarshal([]byte(job.Param), &evt)
+		if err != nil {
+			log.Errorf("json.Unmarshal([]byte(j.Param), &evt) err=%v, j=%v", err, job)
+			continue
+		}
+
+		if url_args.Compare(link, evt.Link, evt.LinkArgs) {
+			return job, keyHash, nil
+		}
+	}
+	return nil, keyHash, nil
+}
+
+const ScanPageTaskId = 10
+
+func scanPage(userId int64, pageUrl string) {
+	job, _, err := findJobByUserIdAndLink(userId, pageUrl)
+	if err != nil {
+		log.Error("findJobByUserIdAndLink(userId, pageUrl)", err)
+		return
+	}
+
+	if job == nil {
+		return
+	}
+	if job.TaskId != ScanPageTaskId {
+		return
+	}
+
+	suc, err := completeJob(userId, job.Id)
+	if err != nil {
+		log.Error("completeJob(userId, job.Id)", err)
+		return
+	}
+	if suc {
+		var evt = events.UserOpenTreasureChest{}
+		err = json.Unmarshal([]byte(job.Param), &evt)
+		if err != nil {
+			log.Error("json.Unmarshal([]byte(job.Param), &evt)", err)
+			return
+		}
+
+		pointsEvt := interfaces.S.PointsScheduler.BuildPointsEventTypeReward(userId, job.Id, evt.Points, evt.TreasureChestName)
+		err := emitter.Emit(pointsEvt)
+		if err != nil {
+			log.Error("emitter.Emit(pointsEvt)", err)
+			return
+		}
+	}
+}
+
+const ScanVideoTaskId = 11
+
+func scanVideo(userId int64, pageUrl string, process int) {
+	job, _, err := findJobByUserIdAndLink(userId, pageUrl)
+	if err != nil {
+		log.Error("findJobByUserIdAndLink(userId, pageUrl)", err)
+		return
+	}
+	if job == nil {
+		return
+	}
+	if job.TaskId != ScanVideoTaskId {
+		return
+	}
+
+	if process < ScanVideoToCompletedProcess {
+		return
+	}
+
+	suc, err := completeJob(userId, job.Id)
+	if err != nil {
+		log.Error("completeJob(userId, job.Id)", err)
+		return
+	}
+	if suc {
+		var evt = events.UserOpenTreasureChest{}
+		err = json.Unmarshal([]byte(job.Param), &evt)
+		if err != nil {
+			log.Error("json.Unmarshal([]byte(job.Param), &evt)", err)
+			return
+		}
+
+		pointsEvt := interfaces.S.PointsScheduler.BuildPointsEventTypeReward(userId, job.Id, evt.Points, evt.TreasureChestName)
+		err := emitter.Emit(pointsEvt)
+		if err != nil {
+			log.Error("emitter.Emit(pointsEvt)", err)
+			return
+		}
+	}
 }

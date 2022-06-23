@@ -2,22 +2,22 @@ package task_bubble
 
 import (
 	"aed-api-server/internal/interfaces"
+	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
-	"aed-api-server/internal/interfaces/service"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
 type DonationPoints struct{}
 
-func (*DonationPoints) GetTriggerEvents() []events.UserEvent {
-	return []events.UserEvent{
+func (*DonationPoints) GetTriggerEvents() []events.UserBaseEvent {
+	return []events.UserBaseEvent{
 		//用户注册事件
 		&events.FirstLoginEvent{},
 	}
 }
 
-func (d *DonationPoints) ExecuteCondition(userId int64) (bool, *service.TaskBubble) {
+func (d *DonationPoints) ExecuteCondition(userId int64) (bool, *entities.TaskBubble) {
 	count, err := countTreeTaskBubble(userId, TaskDonation)
 	if err != nil {
 		log.Error("countTreeTaskBubble err", userId, TaskDonation, err)
@@ -37,7 +37,7 @@ func (d *DonationPoints) ExecuteCondition(userId int64) (bool, *service.TaskBubb
 		return false, nil
 	}
 
-	return true, &service.TaskBubble{
+	return true, &entities.TaskBubble{
 		BubbleId:    TaskDonation,
 		Name:        TaskDonationName,
 		Points:      200,

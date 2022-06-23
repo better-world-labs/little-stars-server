@@ -2,16 +2,32 @@ package task
 
 import (
 	"aed-api-server/internal/interfaces"
+	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/location"
-	"aed-api-server/internal/pkg/response"
 	"github.com/gin-gonic/gin"
+	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 )
 
-type Controller struct{}
+type Controller struct {
+	TaskService service.TaskService `inject:"-"`
+}
+
+func NewController() *Controller {
+	return &Controller{}
+}
+
+func (c Controller) MountAuthRouter(r *route.Router) {
+	taskR := r.Group("/task-jobs")
+	r.GET("/devices/:deviceId/picket-task", c.FindPicketTaskByDeviceId)
+	taskR.GET("", c.GetUserTasks)
+	taskR.GET("/count", c.GetUserTaskStat)
+	taskR.PUT("/:jobId/read", c.ReadTask)
+	taskR.GET("/job", c.findByLink)
+}
 
 //GetUserTasks 获取任务列表
-func (Controller) GetUserTasks(c *gin.Context) {
+func (Controller) GetUserTasks(c *gin.Context) (interface{}, error) {
 	type Param struct {
 		PageSize       int     `form:"pageSize"`
 		Status         string  `form:"status"`
@@ -24,8 +40,7 @@ func (Controller) GetUserTasks(c *gin.Context) {
 	var param Param
 	err := c.ShouldBindQuery(&param)
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
 
 	result, err := interfaces.S.Task.GetUserTasks(
@@ -40,44 +55,60 @@ func (Controller) GetUserTasks(c *gin.Context) {
 		},
 	)
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
-	response.ReplyOK(c, result)
+
+	return result, nil
 }
 
 //ReadTask 将任务设置为已读
-func (Controller) ReadTask(c *gin.Context) {
+func (Controller) ReadTask(c *gin.Context) (interface{}, error) {
 	err := interfaces.S.Task.ReadUserTask(
 		c.MustGet(pkg.AccountIDKey).(int64),
 		c.Param("jobId"),
 	)
 
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
 
-	response.ReplyOK(c, nil)
+	return nil, nil
 }
 
-func (Controller) GetUserTaskStat(c *gin.Context) {
+func (Controller) GetUserTaskStat(c *gin.Context) (interface{}, error) {
 	res, err := interfaces.S.Task.GetUserTaskStat(c.MustGet(pkg.AccountIDKey).(int64))
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
-	response.ReplyOK(c, res)
+	return res, nil
 }
 
-func (Controller) FindPicketTaskByDeviceId(c *gin.Context) {
+func (Controller) FindPicketTaskByDeviceId(c *gin.Context) (interface{}, error) {
 	userTask, err := interfaces.S.Task.FindUserTaskByUserIdAndDeviceId(
 		c.MustGet(pkg.AccountIDKey).(int64),
 		c.Param("deviceId"),
 	)
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
-	response.ReplyOK(c, userTask)
+	return userTask, nil
+}
+
+func (c Controller) findByLink(context *gin.Context) (interface{}, error) {
+	link := context.Query("link")
+	if link == "" {
+		return nil, nil
+	}
+	userId := context.MustGet(pkg.AccountIDKey).(int64)
+	job, err := c.TaskService.FindJobByPageLink(userId, link)
+	if err != nil {
+		return nil, err
+	}
+	if job == nil {
+		return nil, nil
+	}
+	return map[string]interface{}{
+		"taskId": job.TaskId,
+		"points": job.Points,
+	}, nil
 }

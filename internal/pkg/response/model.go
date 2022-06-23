@@ -1,5 +1,7 @@
 package response
 
+const ResponseOK = 0
+
 type Response struct {
 	Code int         `json:"code"`
 	Msg  string      `json:"msg,omitempty"`
@@ -20,4 +22,8 @@ func NewResponseOk(data interface{}) *Response {
 
 func NewResponseError(code int, msg string, data interface{}) *Response {
 	return NewResponse(code, msg, data)
+}
+
+func (r Response) Succeed() bool {
+	return r.Code == ResponseOK
 }

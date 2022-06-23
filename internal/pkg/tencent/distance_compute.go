@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 // 距离批量计算 from起始位置 to终点位置
@@ -16,7 +16,7 @@ func DistanceFrom(from location.Coordinate, to []location.Coordinate) (distances
 		return []int64{}
 	}
 
-	log.DefaultLogger().Infof("tencent_distance_from called from=%v, to=%v", from, to)
+	log.Infof("tencent_distance_from called from=%v, to=%v", from, to)
 	if !inChina(from) {
 		l := len(to)
 		distances = make([]int64, l)
@@ -29,7 +29,7 @@ func DistanceFrom(from location.Coordinate, to []location.Coordinate) (distances
 
 	distances, err := DistanceFromCloud(from, to)
 	if err != nil {
-		log.DefaultLogger().Warnf("DistanceFromCloud failed: %v", err)
+		log.Warnf("DistanceFromCloud failed: %v", err)
 
 		// 腾讯API 请求失败则本地计算直线距离
 		distances = DistanceFromLocal(from, to)
@@ -64,7 +64,7 @@ func DistanceFromCloud(from location.Coordinate, to []location.Coordinate) (dist
 	}
 
 	if resp.Status != 0 || resp.Message != "query ok" {
-		log.DefaultLogger().Errorf("DistanceFrom error: url %v", url)
+		log.Errorf("DistanceFrom error: url %v", url)
 		return nil, fmt.Errorf("/ws/distance/v1/matrix status:%v message:%v", resp.Status, resp.Message)
 	}
 

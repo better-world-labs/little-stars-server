@@ -2,54 +2,44 @@ package interfaces
 
 import (
 	"aed-api-server/internal/interfaces/service"
+	cron "github.com/robfig/cron/v3"
 )
 
 type ServiceKeeper struct {
-	Task            service.TaskService
-	Device          service.DeviceService
-	PicketCondition service.PicketConditionService
-	Project         service.ProjectService
-	Course          service.CourseService
-	Exam            service.ExamService
-	UserConfig      service.UserConfigService
-	User            service.UserService
-	ClockIn         service.ClockInService
-	Trace           service.TraceService
-	Points          service.PointsService
-	PointsScheduler service.PointsScheduler
-	MeritTree       service.MeritTreeService
-	Friends         service.FriendsService
-	Essay           service.EssayService
-	Walk            service.WalkService
-	Activity        service.ActivityService
-	Early           service.EarlyService
-	Donation        service.DonationService
-	Evidence        service.EvidenceService
-	Medal           service.MedalService
-	UserMedal       service.UserMedalService
-	Stat            service.StatService
-
-	Config service.ConfigService
-
-	Feedback   service.FeedbackService
-	TaskBubble service.MeritTreeTaskTaskBubble
+	Aid             service.AidService              `inject:"-"`
+	Task            service.TaskService             `inject:"-"`
+	Device          service.DeviceService           `inject:"-"`
+	PicketCondition service.PicketConditionService  `inject:"-"`
+	Project         service.ProjectService          `inject:"-"`
+	Course          service.CourseService           `inject:"-"`
+	Exam            service.ExamService             `inject:"-"`
+	UserConfig      service.UserConfigService       `inject:"-"`
+	User            service.UserService             `inject:"-"`
+	UserOld         service.UserServiceOld          `inject:"-"`
+	ClockIn         service.ClockInService          `inject:"-"`
+	Trace           service.TraceService            `inject:"-"`
+	Points          service.PointsService           `inject:"-"`
+	PointsScheduler service.PointsScheduler         `inject:"-"`
+	MeritTree       service.MeritTreeService        `inject:"-"`
+	Friends         service.FriendsService          `inject:"-"`
+	Essay           service.EssayService            `inject:"-"`
+	Walk            service.WalkService             `inject:"-"`
+	Activity        service.ActivityService         `inject:"-"`
+	Early           service.EarlyService            `inject:"-"`
+	Donation        service.DonationService         `inject:"-"`
+	Evidence        service.EvidenceService         `inject:"-"`
+	Medal           service.MedalService            `inject:"-"`
+	UserMedal       service.UserMedalService        `inject:"-"`
+	Stat            service.StatService             `inject:"-"`
+	Config          service.ConfigService           `inject:"-"`
+	Feedback        service.FeedbackService         `inject:"-"`
+	TaskBubble      service.MeritTreeTaskTaskBubble `inject:"-"`
+	Vote            service.VoteService             `inject:"-"`
+	SubscribeMsg    service.SubscribeMsg            `inject:"-"`
+	Wx              service.WechatClient            `inject:"-"`
+	//定时器 `inject:"-"`
+	Cron   *cron.Cron            `inject:"-"`
+	Market service.MarketService `inject:"-"`
 }
 
-var S = ServiceKeeper{}
-
-// --- task/service.go ---
-//func init() {
-//	interfaces.S.Task = &Service{} //初始化服务 👈🏻
-//}
-//
-
-// --- task/controller.go ---
-//type Controller struct {
-//	task interfaces.TaskService
-//}
-//
-//func NewController() *Controller {
-//	return &Controller{
-//		task: interfaces.S.Task, //使用服务 👈🏻
-//	}
-//}
+var S = &ServiceKeeper{}

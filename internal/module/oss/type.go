@@ -2,12 +2,12 @@ package oss
 
 // 阿里云oss配置
 type Config struct {
-	Endpoint        string `yaml:"endpoint"`
-	AccesskeyId     string `yaml:"accesskey-id"`
-	AccesskeySecret string `yaml:"accesskey-secret"`
-	BucketName      string `yaml:"bucket-name"`
-	Domain          string `yaml:"domain"`
-	UploadDir       string `yaml:"upload-dir"`
+	Endpoint        string `properties:"endpoint"`
+	AccesskeyId     string `properties:"accesskey-id"`
+	AccesskeySecret string `properties:"accesskey-secret"`
+	BucketName      string `properties:"bucket-name"`
+	Domain          string `properties:"domain"`
+	UploadDir       string `properties:"upload-dir"`
 }
 
 // oss直传配置

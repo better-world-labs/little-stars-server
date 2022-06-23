@@ -3,9 +3,12 @@ package task
 import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
-	"aed-api-server/internal/interfaces/service"
+	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/pkg/db"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	"aed-api-server/internal/pkg/utils"
+	"fmt"
+	log "github.com/sirupsen/logrus"
+	"strings"
 	"time"
 )
 
@@ -75,7 +78,49 @@ const (
 	AedCount = 100
 )
 
-func (t Task) genJob(userId int64, d *entities.Device) *service.Job {
+func buildKeyHash(userId int64, link string) string {
+	index := strings.Index(link, "?")
+	if index != -1 {
+		link = link[0:index]
+	}
+	return utils.Md5(fmt.Sprintf("%v|%s", userId, link))
+}
+
+func (t *Task) genJobByTreasureChest(chest *events.UserOpenTreasureChest) {
+	if !t.matchUserRange(chest.UserId) {
+		return
+	}
+
+	job, keyHash, err := findJobByUserIdAndLink(chest.UserId, chest.Link)
+
+	if err != nil {
+		log.Error("find job by key err", err)
+		return
+	}
+	if job != nil {
+		log.Info("genJobByTreasureChest: job exited")
+		return
+	}
+
+	job = &entities.Job{
+		TaskId:      t.Id,
+		UserId:      chest.UserId,
+		IsRead:      False,
+		IsTimeLimit: False,
+		Status:      JOB_STATUS_INIT,
+		CreatedAt:   time.Now(),
+		Points:      chest.Points,
+		KeyHash:     keyHash,
+		Param:       utils.Json(chest),
+	}
+
+	err = saveJob(job)
+	if err != nil {
+		log.Error("saveJob error", err)
+	}
+}
+
+func (t Task) genJob(userId int64, d *entities.Device) *entities.Job {
 	//用户范围匹配
 	if !t.matchUserRange(userId) {
 		return nil
@@ -91,7 +136,7 @@ func (t Task) genJob(userId int64, d *entities.Device) *service.Job {
 		return nil
 	}
 
-	job := service.Job{
+	job := entities.Job{
 		TaskId:      t.Id,
 		UserId:      userId,
 		IsRead:      False,

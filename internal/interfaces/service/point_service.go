@@ -40,4 +40,16 @@ type PointsService interface {
 
 	// GetUserPeriodIncomePointsRecords 读取用户在时间范围内的积分收入流水
 	GetUserPeriodIncomePointsRecords(userId int64, begin, end time.Time) ([]*entities.UserPointsRecord, error)
+
+	GetAllPointsExpiringUserIds(duration time.Duration) ([]int64, error)
+
+	StatExpiringPoints(userId int64) (points int, minExpiredAt time.Time, err error)
+
+	IsTodayHasPointFlowOfType(userId int64, pointsEventType entities.PointsEventType) (bool, error)
+
+	IsTodayHasPointFlowOfTypeBatched(userIds []int64, pointsEventType entities.PointsEventType) ([]int64, error)
+
+	Detail(accountID int64) ([]*entities.Point, error)
+
+	TotalPoints(accountID int64) (float64, error)
 }

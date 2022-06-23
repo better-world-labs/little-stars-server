@@ -1,12 +1,11 @@
 package device
 
 import (
-	"aed-api-server/internal/interfaces"
 	"github.com/ethereum/go-ethereum/log"
 )
 
-func init() {
-	interfaces.S.PicketCondition = PicketCondition{NewStorage()}
+func NewPicketCondition() *PicketCondition {
+	return &PicketCondition{NewStorage()}
 }
 
 type PicketCondition struct {

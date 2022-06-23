@@ -7,17 +7,18 @@ import (
 	"aed-api-server/internal/module/evidence/credential/claim"
 	"aed-api-server/internal/pkg/base"
 	"aed-api-server/internal/pkg/db"
+	"aed-api-server/internal/pkg/utils"
 	"errors"
 	"github.com/go-xorm/xorm"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"strconv"
 )
 
 type Service struct {
 }
 
-func Init() {
-	interfaces.S.Medal = &Service{}
+func NewService() *Service {
+	return &Service{}
 }
 
 func (m *Service) AwardMedalSaveLife(userId, helpInfoId int64) error {
@@ -25,6 +26,7 @@ func (m *Service) AwardMedalSaveLife(userId, helpInfoId int64) error {
 }
 
 func (m *Service) AwardMedalFirstDonation(userId, donationRecordId int64) error {
+	defer utils.TimeStat("AwardMedalFirstDonation")()
 	_, exists, err := achievement.GetUserMedal(achievement.MedalIdFirstDonation, userId)
 	if err != nil {
 		return err
@@ -74,7 +76,7 @@ func (m *Service) AwardMedal(userId, medalId int64, businessId string) error {
 
 		err = achievement.CreateUsersMedal(session, userMedal)
 		if err != nil {
-			log.DefaultLogger().Error("create user medal error: %v", err)
+			log.Error("create user medal error: %v", err)
 			return err
 		}
 
@@ -85,7 +87,7 @@ func (m *Service) AwardMedal(userId, medalId int64, businessId string) error {
 
 		err = achievement.CreateUsersMedalToast(session, userMedal)
 		if err != nil {
-			log.DefaultLogger().Error("create user medal toast error: %v", err)
+			log.Error("create user medal toast error: %v", err)
 			return err
 		}
 

@@ -3,7 +3,7 @@ package speech
 import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg/sms"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 //var targetAidCallPhones = []string{"15548720906"}
@@ -32,7 +32,7 @@ func NewAidCaller(envPrefix string, generator PathGenerator) AidCenterCaller {
 //}
 
 func (c manual120Caller) Call(helpInfo *entities.HelpInfo) error {
-	log.DefaultLogger().Infof("Call 120 for helpInfo %d", helpInfo.ID)
+	log.Infof("Call 120 for helpInfo %d", helpInfo.ID)
 
 	//publisher, err := userService.GetAccountByID(r.Record.Publisher)
 	//if err != nil {
@@ -43,11 +43,11 @@ func (c manual120Caller) Call(helpInfo *entities.HelpInfo) error {
 	for _, mobile := range targetAidCallPhones {
 		err := c.doCall(mobile, helpInfo.ID)
 		if err != nil {
-			log.DefaultLogger().Errorf("AidCall target phone %s error: %v", mobile, err)
+			log.Errorf("AidCall target phone %s error: %v", mobile, err)
 			return err
 		}
 
-		log.DefaultLogger().Infof("AidCall target phone %s", mobile)
+		log.Infof("AidCall target phone %s", mobile)
 	}
 	//}
 
@@ -55,7 +55,7 @@ func (c manual120Caller) Call(helpInfo *entities.HelpInfo) error {
 }
 
 func (c *manual120Caller) doCall(mobile string, aid int64) error {
-	log.DefaultLogger().Infof("doCall for mobile %s, aid=%d", mobile, aid)
+	log.Infof("doCall for mobile %s, aid=%d", mobile, aid)
 
 	path, err := c.pathGenerator.GeneratePath(aid, mobile[7:])
 	if err != nil {

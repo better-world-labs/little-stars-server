@@ -1,9 +1,9 @@
 package task_bubble
 
 import (
+	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
-	"aed-api-server/internal/interfaces/service"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -11,14 +11,14 @@ import (
 
 type AidLearning struct{}
 
-func (*AidLearning) GetTriggerEvents() []events.UserEvent {
-	return []events.UserEvent{
+func (*AidLearning) GetTriggerEvents() []events.UserBaseEvent {
+	return []events.UserBaseEvent{
 		//用户注册事件
 		&events.FirstLoginEvent{},
 	}
 }
 
-func (d *AidLearning) ExecuteCondition(userId int64) (bool, *service.TaskBubble) {
+func (d *AidLearning) ExecuteCondition(userId int64) (bool, *entities.TaskBubble) {
 	count, err := countTreeTaskBubble(userId, TaskAidLearn)
 	if err != nil {
 		log.Error("countTreeTaskBubble err", userId, TaskAidLearn, err)
@@ -29,7 +29,7 @@ func (d *AidLearning) ExecuteCondition(userId int64) (bool, *service.TaskBubble)
 		return false, nil
 	}
 
-	return true, &service.TaskBubble{
+	return true, &entities.TaskBubble{
 		BubbleId:    TaskAidLearn,
 		Name:        TaskAidLearnName,
 		Points:      100,

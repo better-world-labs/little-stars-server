@@ -1,7 +1,6 @@
 package essay
 
 import (
-	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg/db"
 	"errors"
@@ -9,11 +8,11 @@ import (
 	"time"
 )
 
-func init() {
-	interfaces.S.Essay = &Service{}
+type Service struct {
 }
 
-type Service struct {
+func NewService() *Service {
+	return &Service{}
 }
 
 func (s *Service) Create(essay *entities.Essay) error {

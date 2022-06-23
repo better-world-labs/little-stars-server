@@ -1,9 +1,9 @@
 package task_bubble
 
 import (
+	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
-	"aed-api-server/internal/interfaces/service"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -11,14 +11,14 @@ import (
 
 type NearbyAED struct{}
 
-func (*NearbyAED) GetTriggerEvents() []events.UserEvent {
-	return []events.UserEvent{
+func (*NearbyAED) GetTriggerEvents() []events.UserBaseEvent {
+	return []events.UserBaseEvent{
 		//用户注册事件
 		&events.FirstLoginEvent{},
 	}
 }
 
-func (d *NearbyAED) ExecuteCondition(userId int64) (bool, *service.TaskBubble) {
+func (d *NearbyAED) ExecuteCondition(userId int64) (bool, *entities.TaskBubble) {
 	count, err := countTreeTaskBubble(userId, TaskEnterMap)
 	if err != nil {
 		log.Error("countTreeTaskBubble err", userId, TaskEnterMap, err)
@@ -29,7 +29,7 @@ func (d *NearbyAED) ExecuteCondition(userId int64) (bool, *service.TaskBubble) {
 		return false, nil
 	}
 
-	return true, &service.TaskBubble{
+	return true, &entities.TaskBubble{
 		BubbleId:    TaskEnterMap,
 		Name:        TaskEnterMapName,
 		Points:      100,

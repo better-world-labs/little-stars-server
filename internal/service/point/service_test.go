@@ -16,7 +16,7 @@ var userId int64 = 49
 var addPoints = 100
 
 func InitDbAndConfig() func() {
-	c, err := config.LoadConfig("../../../config-local.yaml")
+	c, err := config.LoadConfig("../../../")
 	if err != nil {
 		panic("get config error")
 	}
@@ -51,7 +51,7 @@ func Test_insertPoints_ReceivePoints(t *testing.T) {
 	t.Cleanup(InitDbAndConfig())
 	now := time.Now()
 	expired := now.Add(10 * time.Second)
-	err := insertPoints(userId, addPoints, entities.PointsEventTypeActivityGive, entities.PointsEventParams{
+	err := insertPoints(userId, addPoints, entities.PointsEventTypeActivityGive, "", entities.PointsEventParams{
 		RefTable:   "test",
 		RefTableId: 100,
 	}, expired)

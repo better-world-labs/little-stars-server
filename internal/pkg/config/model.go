@@ -16,76 +16,69 @@ type (
 	// AppConfig  应用配置结构体
 	// 禁止依赖模块本身
 	AppConfig struct {
-		Server            ServerConfig             `yaml:"server"`
-		Domain            config.DomainEventConfig `yaml:"domain-event"`
-		Log               log.LogConfig            `yaml:"log"`
-		Database          db.MysqlConfig           `yaml:"database"`
-		Wechat            WechatOAuthConfig        `yaml:"wechat"`
-		AliOss            oss.Config               `yaml:"alioss"`
-		Kafka             KafkaConfig              `yaml:"kafka"`
-		MapConfig         tencent.Config           `yaml:"tencent_map"`
-		Redis             cache.RedisConfig        `yaml:"redis"`
-		DidServer         openapi.Config           `yaml:"did-server"`
-		SmsClient         sms.Config               `yaml:"aliyun-sms"`
-		JwtConfig         JwtConfig                `yaml:"jwt"`
-		MiniProgramQrcode MiniProgramQrcodeConfig  `yaml:"mini-program-qrcode"`
-		CredentialConfig  openapi.Config           `yaml:"credential"`
-		EvidenceConfig    openapi.Config           `yaml:"evidence"`
-		//FiscoBcos         openapi.Config           `yaml:"fisco-bcos"`
-		Notifier    NotifierConfig           `yaml:"notifier"`
-		Exam        Exam                     `yaml:"exam"`
-		DomainEvent config.DomainEventConfig `yaml:"domain.emitter"`
+		Server            ServerConfig             `properties:"server"`
+		Domain            config.DomainEventConfig `properties:"domain-event"`
+		Log               log.LogConfig            `properties:"log"`
+		Database          db.MysqlConfig           `properties:"database"`
+		Wechat            WechatOAuthConfig        `properties:"wechat"`
+		AliOss            oss.Config               `properties:"alioss"`
+		MapConfig         tencent.Config           `properties:"tencent_map"`
+		Redis             cache.RedisConfig        `properties:"redis"`
+		SmsClient         sms.Config               `properties:"aliyun-sms"`
+		JwtConfig         JwtConfig                `properties:"jwt"`
+		MiniProgramQrcode MiniProgramQrcodeConfig  `properties:"mini-program-qrcode"`
+		CredentialConfig  openapi.Config           `properties:"credential"`
+		EvidenceConfig    openapi.Config           `properties:"evidence"`
+		Notifier          NotifierConfig           `properties:"notifier"`
+		Exam              Exam                     `properties:"exam"`
+		Backend           Backend                  `properties:"backend"`
+		WechatToken       Service                  `properties:"wechat-token"`
 
-		Env                 string `yaml:"env-name"`
-		Host                string `yaml:"env-host"`
-		DonationApplyNotify string `yaml:"donation-apply-notify"`
-
-		CptAedCert int `yaml:"cpt-aed-cert"` //证书在凭证服务中CPT的编号
-		CptMedal   int `yaml:"cpt-medal"`    //勋章在凭证服务中CPT的编号
-
-		Backend       Backend `yaml:"backend"`
-		ImgBotService string  `yaml:"img-bot-service"`
-
-		WechatOffiaccountAppid  string `yaml:"wechat-offiaccount-appid"`
-		WechatOffiaccountSecret string `yaml:"wechat-offiaccount-secret"`
+		DonationApplyNotify     string `properties:"donation-apply-notify"`
+		CptAedCert              int    `properties:"cpt-aed-cert"` //证书在凭证服务中CPT的编号
+		CptMedal                int    `properties:"cpt-medal"`    //勋章在凭证服务中CPT的编号
+		ImgBotService           string `properties:"img-bot-service"`
+		WechatOffiaccountAppid  string `properties:"wechat-offiaccount-appid"`
+		WechatOffiaccountSecret string `properties:"wechat-offiaccount-secret"`
 	}
 
 	// ServerConfig 服务配置结构体
 	ServerConfig struct {
-		Port        int    `yaml:"port"`
-		Environment string `yaml:"environment"`
+		Host string `properties:"host"`
+		Port int    `properties:"port"`
+		Env  string `properties:"env"`
 	}
 
-	KafkaConfig struct {
-		BootStrapServers string `yaml:"boot-strap-servers"`
-		Topic            string `yaml:"topic"`
+	Service struct {
+		Host string `properties:"host"`
+		Port int    `properties:"port"`
 	}
 
 	JwtConfig struct {
-		ExpiresIn int64  `yaml:"expiresIn"`
-		Secret    string `yaml:"secret"`
+		ExpiresIn int64  `properties:"expiresIn"`
+		Secret    string `properties:"secret"`
 	}
 
 	MiniProgramQrcodeConfig struct {
-		ContentRootPath string `yaml:"content-root-path"`
+		ContentRootPath string `properties:"content-root-path"`
 	}
 
 	NotifierConfig struct {
-		UserFinder string `yaml:"user-finder"`
+		UserFinder string `properties:"user-finder"`
 	}
 
 	WechatOAuthConfig struct {
-		Server    string `yaml:"server"`
-		AppID     string `yaml:"app-key"`
-		AppSecret string `yaml:"app-secret"`
+		Server    string `properties:"server"`
+		AppID     string `properties:"app-key"`
+		AppSecret string `properties:"app-secret"`
 	}
 	Exam struct {
-		Debug bool `yaml:"debug"`
+		Debug bool `properties:"debug"`
 	}
 
 	Backend struct {
-		Username string `yaml:"username"`
-		Password string `yaml:"password"`
-		Id       int64  `yaml:"id"`
+		Username string `properties:"username"`
+		Password string `properties:"password"`
+		Id       int64  `properties:"id"`
 	}
 )

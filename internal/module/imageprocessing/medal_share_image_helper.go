@@ -1,10 +1,11 @@
 package imageprocessing
 
 import (
+	"aed-api-server/internal/interfaces"
+	"aed-api-server/internal/interfaces/entities"
+	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/module/achievement"
-	"aed-api-server/internal/module/aid"
 	"aed-api-server/internal/module/img"
-	"aed-api-server/internal/module/user"
 	"aed-api-server/internal/pkg/asserts"
 	"aed-api-server/internal/pkg/base"
 	"aed-api-server/internal/pkg/config"
@@ -22,9 +23,11 @@ import (
 )
 
 var shareBg image.Image
-var aidService aid.Service
 
-func DrawMedalShare(medalId int64, account *user.User, writer io.Writer, config config.MiniProgramQrcodeConfig) error {
+func aidService() service.AidService {
+	return interfaces.S.Aid
+}
+func DrawMedalShare(medalId int64, account *entities.User, writer io.Writer, config config.MiniProgramQrcodeConfig) error {
 	userMedal, exists, err := achievement.GetUserMedal(medalId, account.ID)
 	if err != nil {
 		return err
@@ -44,7 +47,7 @@ func DrawMedalShare(medalId int64, account *user.User, writer io.Writer, config 
 	return doDrawMedalShare(medal, userMedal, account, writer, config)
 }
 
-func doDrawMedalGeneric(m *achievement.Medal, um *achievement.UserMedal, u *user.User, writer io.Writer, config config.MiniProgramQrcodeConfig) error {
+func doDrawMedalGeneric(m *achievement.Medal, um *achievement.UserMedal, u *entities.User, writer io.Writer, config config.MiniProgramQrcodeConfig) error {
 	bgBytes, exists := asserts.GetResource(m.ShareBackground)
 	if !exists {
 		return errors.New("background assert not found")
@@ -90,7 +93,7 @@ func doDrawMedalGeneric(m *achievement.Medal, um *achievement.UserMedal, u *user
 
 	return jpeg.Encode(writer, background, &jpeg.Options{Quality: 90})
 }
-func doDrawMedalSaveLife(m *achievement.Medal, um *achievement.UserMedal, u *user.User, writer io.Writer, config config.MiniProgramQrcodeConfig) error {
+func doDrawMedalSaveLife(m *achievement.Medal, um *achievement.UserMedal, u *entities.User, writer io.Writer, config config.MiniProgramQrcodeConfig) error {
 	bgBytes, exists := asserts.GetResource(m.ShareBackground)
 	if !exists {
 		return errors.New("background assert not found")
@@ -130,7 +133,7 @@ func doDrawMedalSaveLife(m *achievement.Medal, um *achievement.UserMedal, u *use
 			return err
 		}
 
-		helpInfo, exists, err := aidService.GetHelpInfoComposedByID(aidId, nil)
+		helpInfo, exists, err := aidService().GetHelpInfoComposedByID(aidId, nil)
 		if exists {
 			runes := []rune(helpInfo.Address)
 			err = img.DrawText(background, string(runes[:6]), 650, 1573, 22, color.Black)
@@ -153,7 +156,7 @@ func doDrawMedalSaveLife(m *achievement.Medal, um *achievement.UserMedal, u *use
 	return jpeg.Encode(writer, background, &jpeg.Options{Quality: 90})
 }
 
-func doDrawMedalShare(m *achievement.Medal, um *achievement.UserMedal, u *user.User, writer io.Writer, config config.MiniProgramQrcodeConfig) error {
+func doDrawMedalShare(m *achievement.Medal, um *achievement.UserMedal, u *entities.User, writer io.Writer, config config.MiniProgramQrcodeConfig) error {
 	switch m.ID {
 	case achievement.MedalIdSaveLife:
 		return doDrawMedalSaveLife(m, um, u, writer, config)

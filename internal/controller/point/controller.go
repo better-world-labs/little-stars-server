@@ -2,37 +2,48 @@ package point
 
 import (
 	"aed-api-server/internal/interfaces"
+	service2 "aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg"
-	"aed-api-server/internal/pkg/response"
 	"aed-api-server/internal/pkg/utils"
 	"github.com/gin-gonic/gin"
+	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 )
 
 type Controller struct {
+	Service service2.PointsService `inject:"-"`
 }
 
-func (Controller) GetPointsStrategies(c *gin.Context) {
+func NewController() *Controller {
+	return &Controller{}
+}
+
+func (con Controller) MountAuthRouter(r *route.Router) {
+	g := r.Group("/points")
+	g.GET("/details", con.GetPointDetail)
+	g.GET("/total", con.GetUserPointsCount)
+	g.GET("/strategies", con.GetPointsStrategies)
+}
+
+func (Controller) GetPointsStrategies(c *gin.Context) (interface{}, error) {
 	strategies, err := interfaces.S.PointsScheduler.GetPointStrategies()
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
-	response.ReplyOK(c, strategies)
+	return strategies, nil
 }
 
-func (Controller) GetPointDetail(c *gin.Context) {
+func (Controller) GetPointDetail(c *gin.Context) (interface{}, error) {
 	userId := c.MustGet(pkg.AccountIDKey).(int64)
 	records, err := interfaces.S.Points.GetUserPointsRecords(userId)
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
-	response.ReplyOK(c, struct {
+	return struct {
 		Details []*UserPointsRecordDto `json:"details"`
-	}{parseDtos(records)})
+	}{parseDtos(records)}, nil
 }
 
-func (Controller) GetUserPointsCount(c *gin.Context) {
+func (Controller) GetUserPointsCount(c *gin.Context) (interface{}, error) {
 	userId := c.MustGet(pkg.AccountIDKey).(int64)
 	all, err := utils.PromiseAll(func() (interface{}, error) {
 		return interfaces.S.Points.GetUserTotalPoints(userId)
@@ -41,15 +52,14 @@ func (Controller) GetUserPointsCount(c *gin.Context) {
 	})
 
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
 
 	total := all[0].(int)
 	donated := all[1].(int)
 
-	response.ReplyOK(c, struct {
+	return struct {
 		Total   int `json:"total"`
 		Donated int `json:"donated"`
-	}{total, donated})
+	}{total, donated}, nil
 }

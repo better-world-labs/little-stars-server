@@ -6,7 +6,7 @@ import (
 	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg/domain/emitter"
 	"errors"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 var (

@@ -3,10 +3,11 @@ package achievement
 import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
+	service2 "aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/module/aid/track"
 	"aed-api-server/internal/pkg/cache"
 	"fmt"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -22,6 +23,10 @@ func InitTask() {
 	duration := getDuration(H, M, S)
 	t = time.NewTimer(duration)
 	go run()
+}
+
+func aidService() service2.AidService {
+	return interfaces.S.Aid
 }
 
 func getDuration(h int, m int, s int) time.Duration {
@@ -44,27 +49,27 @@ func run() {
 }
 
 func doTask() {
-	log.DefaultLogger().Info("start medal issue")
-	b, lock, err := cache.GetDistributeLock("aed-lock-medal-issue", 5000)
+	log.Info("start medal issue")
+	lock, err := cache.GetDistributeLock("aed-lock-medal-issue", 5000)
 	if err != nil {
-		log.DefaultLogger().Error("medal issue error: %v", err)
-		return
-	}
-
-	if !b {
-		log.DefaultLogger().Warnf("get distribute lock failed, give up")
+		log.Error("medal issue error: %v", err)
 		return
 	}
 
 	defer lock.Release()
 
+	if !lock.Locked() {
+		log.Warnf("get distribute lock failed, give up")
+		return
+	}
+
 	doIssue()
 }
 
 func doIssue() {
-	arr, err := aidService.ListHelpInfosInner24h()
+	arr, err := aidService().ListHelpInfosInner24h()
 	if err != nil {
-		log.DefaultLogger().Errorf("do issue error: %v", err)
+		log.Errorf("do issue error: %v", err)
 		return
 	}
 
@@ -72,7 +77,7 @@ func doIssue() {
 		doIssueForUser(helpInfo.Publisher, helpInfo)
 		t, err := track.GetService().GetAidDeviceGotTracksSorted(helpInfo.ID)
 		if err != nil {
-			log.DefaultLogger().Errorf("do issue error: %v", err)
+			log.Errorf("do issue error: %v", err)
 			continue
 		}
 
@@ -83,10 +88,10 @@ func doIssue() {
 }
 
 func doIssueForUser(userID int64, helpInfo *entities.HelpInfo) {
-	log.DefaultLogger().Infof("do issue for user %d", helpInfo.Publisher)
+	log.Infof("do issue for user %d", helpInfo.Publisher)
 
 	err := interfaces.S.Medal.AwardMedalSaveLife(userID, helpInfo.ID)
 	if err != nil {
-		log.DefaultLogger().Errorf("do issue for user %s failed:%v", userID, err)
+		log.Errorf("do issue for user %s failed:%v", userID, err)
 	}
 }

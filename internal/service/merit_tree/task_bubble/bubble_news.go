@@ -1,9 +1,9 @@
 package task_bubble
 
 import (
+	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
-	"aed-api-server/internal/interfaces/service"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -14,8 +14,8 @@ const (
 type ReadNews struct {
 }
 
-func (*ReadNews) GetTriggerEvents() []events.UserEvent {
-	return []events.UserEvent{
+func (*ReadNews) GetTriggerEvents() []events.UserBaseEvent {
+	return []events.UserBaseEvent{
 		//用户注册事件
 		&events.FirstLoginEvent{},
 
@@ -24,7 +24,7 @@ func (*ReadNews) GetTriggerEvents() []events.UserEvent {
 	}
 }
 
-func (r *ReadNews) ExecuteCondition(userId int64) (bool, *service.TaskBubble) {
+func (r *ReadNews) ExecuteCondition(userId int64) (bool, *entities.TaskBubble) {
 	//是否有5次
 	if bubble, err := countTreeTaskBubble(userId, TaskReadNews); err != nil || bubble >= TriggerTimes {
 		if err != nil {
@@ -56,7 +56,7 @@ func (r *ReadNews) ExecuteCondition(userId int64) (bool, *service.TaskBubble) {
 		effectiveAt = time.Date(t.Year(), t.Month(), t.Day()+1, 0, 0, 0, 0, t.Location())
 	}
 
-	return true, &service.TaskBubble{
+	return true, &entities.TaskBubble{
 		BubbleId:    TaskReadNews,
 		Name:        TaskReadNewsName,
 		Points:      20,

@@ -1,7 +1,7 @@
 package speech
 
 import (
-	"aed-api-server/internal/module/user"
+	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg/location"
 )
 
@@ -12,8 +12,8 @@ func NewTestedUserFinder() UserFinder {
 	return &testedUserFinder{}
 }
 
-func (t *testedUserFinder) FindUser(position location.Coordinate) ([]*user.User, error) {
-	return []*user.User{{
+func (t *testedUserFinder) FindUser(position location.Coordinate) ([]*entities.User, error) {
+	return []*entities.User{{
 		Nickname: "F-S-W-J",
 		Mobile:   "15548720906",
 	}}, nil

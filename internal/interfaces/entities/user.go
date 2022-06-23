@@ -1,14 +1,83 @@
 package entities
 
-const (
-	UserConfigKeyFirstEnterAEDMap = "first-enter-aed-map"
+import (
+	"aed-api-server/internal/pkg/location"
+	"fmt"
+	"time"
 )
 
+const (
+	UserConfigKeyFirstEnterAEDMap          = "first-enter-aed-map"
+	UserConfigKeySubscribeOfficialAccounts = "subscribe-official-accounts"
+)
+
+type LoginCommandV2 struct {
+	Code     string `json:"code"`
+	Nickname string `json:"nickname"`
+	Avatar   string `json:"avatarUrl"`
+}
+
+type MobileCommand struct {
+	EncryptPhone string `json:"encryptedMobile"`
+	Code         string `json:"code"`
+	Iv           string `json:"iv"`
+}
+
+// v1.10 废弃
+type LoginCommand struct {
+	MobileCode   string `json:"mobileCode"`
+	Code         string `json:"code"`
+	EncryptPhone string `json:"encryptedMobile"`
+	Iv           string `json:"iv"`
+	Nickname     string `json:"nickname"`
+	Avatar       string `json:"avatarUrl"`
+}
+
+type SimpleLoginCommand struct {
+	Code string `json:"code" binding:"required"`
+}
+
+type AccountDTOWithSessionKey struct {
+	UserDTO
+
+	SessionKey string `json:"sessionKey"`
+}
+
+type User struct {
+	ID       int64     `xorm:"id pk autoincr"`
+	Nickname string    `xorm:"nickname"`
+	Uid      string    `xorm:"uid"`
+	Avatar   string    `xorm:"avatar"`
+	Mobile   string    `xorm:"mobile"`
+	Unionid  string    `xorm:"unionid"`
+	Openid   string    `xorm:"openid"`
+	Created  time.Time `xorm:"created"`
+}
+
+func (a User) ToSimple() *SimpleUser {
+	return &SimpleUser{
+		ID:       a.ID,
+		Nickname: a.Nickname,
+		Avatar:   a.Avatar,
+	}
+}
+
+type Position struct {
+	*location.Coordinate `xorm:"extends"`
+
+	ID        int64 `xorm:"id pk"`
+	AccountID int64 `xorm:"account_id"`
+}
+type UserStat struct {
+	TotalCount  int64
+	MobileCount int64
+}
+
 type UserDTO struct {
-	ID       int64  `json:"id,string"`
+	ID       int64  `xorm:"id pk autoincr" json:"id,string"`
 	Uid      string `json:"uid"`
 	Nickname string `json:"nickname"`
-	Token    string `json:"token,omitempty"`
+	Token    string `xorm:"-" json:"token,omitempty"`
 	Avatar   string `json:"avatarUrl"`
 	Mobile   string `json:"mobile"`
 	Openid   string `json:"openid"`
@@ -20,3 +89,33 @@ type SimpleUser struct {
 	Avatar   string `json:"avatarUrl" xorm:"avatar"`
 	Uid      string `json:"uid" xorm:"uid"`
 }
+
+type SubscribeTemplateSetting struct {
+	TemplateId string `json:"templateId"`
+	Status     string `json:"status"`
+}
+
+type SubscriptionsSetting struct {
+	MainSwitch bool                        `json:"mainSwitch"`
+	Templates  []*SubscribeTemplateSetting `json:"templates"`
+}
+
+type UserEventType string
+
+const (
+	UserEventTypeGetTreeInfo UserEventType = "get-tree-info"
+	UserEventTypeGetWalkStep UserEventType = "get-walk-step"
+)
+
+func GetUserEventTypeOfReport(key string) UserEventType {
+	return UserEventType(fmt.Sprintf("report:%s", key))
+}
+
+const (
+	Report_enterAedMap         = "enter-aed-map"
+	Report_readNews            = "read-news"
+	Report_showSubscribeQrCode = "show-subscribe-qr"
+	Report_openTreasureChest   = "open-treasure-chest"
+	Report_scanPage            = "scan-page"
+	Report_scanVideo           = "scan-video"
+)

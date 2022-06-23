@@ -24,9 +24,12 @@ const (
 	PointsEventTypeFirstEnterAEDMap PointsEventType = 69 //首次进入AED地图
 	PointsEventTypeReadNews         PointsEventType = 70 //阅读咨询奖励
 	PointsEventTypeDonationAward    PointsEventType = 71 //首次捐积分奖励
+	PointsEventTypeTransaction      PointsEventType = 72 //积分交易
+	PointsEventTypeSubscribe        PointsEventType = 73 //公众号
+	PointsEventTypeReward           PointsEventType = 74 //积分奖励
 
-	WalkConvertRatio      = 100 //步行兑换积分比率
-	FriendAddPointPercent = 10  //好友加成比例
+	WalkConvertRatio      = 50 //步行兑换积分比率
+	FriendAddPointPercent = 10 //好友加成比例
 )
 
 type DealPointsEventRst struct {

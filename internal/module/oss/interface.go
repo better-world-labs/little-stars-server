@@ -10,5 +10,5 @@ type Service interface {
 	// @Param file multipart
 	OssUpload(fileheader *multipart.FileHeader) (string, error)
 	// oss获取直传token
-	GetUploadToken(int64) (interface{}, error)
+	GetUploadToken(prefix string, userId int64) (interface{}, error)
 }

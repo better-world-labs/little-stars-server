@@ -6,12 +6,12 @@ import (
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/utils"
 	"fmt"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"strconv"
 	"time"
 )
 
-func mkMsgContent(name, sex, region, mobile, job string) string {
+func mkMsgContent(name, sex, region, mobile, job, community string) string {
 	return fmt.Sprintf(`
 ### 用户申请积分捐赠项目
 - 姓名：%s
@@ -19,12 +19,13 @@ func mkMsgContent(name, sex, region, mobile, job string) string {
 - 地区：%s
 - 手机号：%s
 - 职业：%s
-`, name, sex, region, mobile, job)
+- 小区：%s
+`, name, sex, region, mobile, job, community)
 }
 
 func sendMsg(apply entities.DonationApply, applyId int64) error {
 	config := interfaces.GetConfig()
-	var str = mkMsgContent(apply.Name, apply.Sex, apply.Region, apply.Mobile, apply.Job)
+	var str = mkMsgContent(apply.Name, apply.Sex, apply.Region, apply.Mobile, apply.Job, apply.Community)
 
 	msg := utils.DingTalkMsg{
 		Msgtype: "actionCard",
@@ -32,8 +33,8 @@ func sendMsg(apply entities.DonationApply, applyId int64) error {
 			Title:          "用户申请积分捐赠项目",
 			Text:           str,
 			BtnOrientation: "0",
-			SingleTitle:    "<环境:" + config.Env + ">点击查看json数据",
-			SingleURL:      "https://" + config.Host + "/api/donations/apply/explain?id=" + strconv.FormatInt(applyId, 10),
+			SingleTitle:    "<环境:" + config.Server.Env + ">点击查看json数据",
+			SingleURL:      "https://" + config.Server.Host + "/api/donations/apply/explain?id=" + strconv.FormatInt(applyId, 10),
 		},
 	}
 	return utils.SendDingTalkBot(config.DonationApplyNotify, &msg)

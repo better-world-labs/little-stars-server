@@ -1,8 +1,8 @@
 package config
 
 type DomainEventConfig struct {
-	Server          string `yaml:"server"`
-	Topic           string `yaml:"topic"`
-	GroupId         string `yaml:"group-id"`
-	DeadLetterTopic string `yaml:"dead-letter-topic"`
+	Server          string `properties:"server"`
+	Topic           string `properties:"topic"`
+	GroupId         string `properties:"group-id"`
+	DeadLetterTopic string `properties:"dead-letter-topic"`
 }

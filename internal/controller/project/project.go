@@ -3,9 +3,9 @@ package project
 import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/pkg"
-	"aed-api-server/internal/pkg/response"
 	_ "aed-api-server/internal/service/project" //关联service
 	"github.com/gin-gonic/gin"
+	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 )
 
 type Controller struct {
@@ -17,68 +17,84 @@ type Param struct {
 	ArticleId int64 `uri:"articleId"`
 }
 
-func (Controller) GetProjectById(c *gin.Context) {
+func NewController() *Controller {
+	return &Controller{}
+}
+
+func (c Controller) MountAuthRouter(r *route.Router) {
+	projectC := r.Group("/projects")
+	projectC.GET("/:projectId/check-video-completed", c.CheckVideoCompleted)
+	projectC.GET("/:projectId/courses/learnt", c.GetLearntCourses)
+	projectC.PUT("/:projectId/video/completed", c.CompletedProjectVideo)
+	projectC.PUT("/courses/:courseId/learnt", c.LearntCourseById)
+	projectC.GET("/:projectId/level", c.GetProjectUserLevel)
+}
+
+func (c Controller) MountNoAuthRouter(r *route.Router) {
+	projectR := r.Group("/projects")
+	projectR.GET("/:projectId", c.GetProjectById)
+	projectR.GET("/:projectId/courses", c.GetProjectCourses)
+	projectR.GET("/courses/:courseId", c.GetProjectCoursesById)
+	projectR.GET("/courses/articles/:articleId", c.GetArticleById)
+}
+
+func (Controller) GetProjectById(c *gin.Context) (interface{}, error) {
 	var param Param
 	if err := c.ShouldBindUri(&param); err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
 
 	project, err := interfaces.S.Project.GetProjectById(param.ProjectId)
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
-	response.ReplyOK(c, project)
+
+	return project, nil
 }
 
-func (Controller) CheckVideoCompleted(c *gin.Context) {
+func (Controller) CheckVideoCompleted(c *gin.Context) (interface{}, error) {
 	type CheckVideoCompleted struct {
 		Completed bool `json:"completed"`
 	}
 	var param Param
 	if err := c.ShouldBindUri(&param); err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
 
 	completed, err := interfaces.S.Project.IsProjectVideoCompleted(param.ProjectId, c.MustGet(pkg.AccountIDKey).(int64))
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
 
-	response.ReplyOK(c, &CheckVideoCompleted{
+	return &CheckVideoCompleted{
 		Completed: completed,
-	})
+	}, nil
 }
 
-func (Controller) CompletedProjectVideo(c *gin.Context) {
+func (Controller) CompletedProjectVideo(c *gin.Context) (interface{}, error) {
 	var param Param
 	if err := c.ShouldBindUri(&param); err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
 
 	rst, err := interfaces.S.Project.CompletedProjectVideo(param.ProjectId, c.MustGet(pkg.AccountIDKey).(int64))
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
-	response.ReplyOK(c, rst)
+
+	return rst, nil
 }
 
-func (Controller) GetProjectUserLevel(c *gin.Context) {
+func (Controller) GetProjectUserLevel(c *gin.Context) (interface{}, error) {
 	var param Param
 	if err := c.ShouldBindUri(&param); err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
 
 	level, err := interfaces.S.Project.GetUserProjectLevel(param.ProjectId, c.MustGet(pkg.AccountIDKey).(int64))
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
-	response.ReplyOK(c, level)
+
+	return level, nil
 }

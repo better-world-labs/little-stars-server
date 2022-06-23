@@ -1,18 +1,18 @@
 package speech
 
 import (
-	"aed-api-server/internal/module/user"
+	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg/sms"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 type PhoneNotifier interface {
-	Notify(target user.User, publisherName string, detailAddress string) error
+	Notify(target entities.User, publisherName string, detailAddress string) error
 }
 
 type AliyunPhoneNotifier struct{}
 
-func (a AliyunPhoneNotifier) Notify(target user.User, publisherName string, detailAddress string) error {
+func (a AliyunPhoneNotifier) Notify(target entities.User, publisherName string, detailAddress string) error {
 	t := make(map[string]string, 3)
 	log.Info("Notify: user=", target.Nickname, "address: ", detailAddress)
 	t["address"] = detailAddress

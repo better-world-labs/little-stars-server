@@ -2,22 +2,15 @@ package middleware
 
 import (
 	"aed-api-server/internal/pkg"
+	"aed-api-server/internal/pkg/utils"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 func Trace(c *gin.Context) {
-	requestID := c.GetHeader(pkg.TraceHeaderKey)
-	if requestID == "" {
-		requestID = uuid.New().String()
-	}
-
-	remoteIP := c.GetHeader("X-Forwarded-For")
-	if remoteIP == "" {
-		ip, _ := c.RemoteIP()
-		remoteIP = ip.String()
-	}
-	c.Set(pkg.TraceHeaderKey, requestID)
-	c.Writer.Header().Set(pkg.TraceHeaderKey, requestID)
-	c.Next()
+	utils.SetTraceId("", func() {
+		requestID := c.GetHeader(pkg.TraceHeaderKey)
+		log.Infof("bind requestId:%s", requestID)
+		c.Next()
+	})
 }

@@ -3,7 +3,7 @@ package db
 import (
 	"github.com/go-xorm/xorm"
 	"github.com/jtolds/gls"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"sync"
 )
 
@@ -11,7 +11,7 @@ import (
 func sessionRollback(session *xorm.Session) {
 	err := session.Rollback()
 	if err != nil {
-		log.DefaultLogger().Errorf("session rollback err:%v", err)
+		log.Errorf("session rollback err:%v", err)
 		panic(err)
 	}
 }
@@ -45,7 +45,7 @@ func Transaction(fn func(session *xorm.Session) error) error {
 			defer delTransaction(gid, session)
 			defer func() {
 				if info := recover(); info != nil {
-					log.DefaultLogger().Errorf("transaction has panic:%v, transaction will rollback", info)
+					log.Errorf("transaction has panic:%v, transaction will rollback", info)
 					sessionRollback(session)
 				}
 			}()

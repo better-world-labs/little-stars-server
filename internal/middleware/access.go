@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"strings"
 	"time"
@@ -37,7 +37,6 @@ func AccessLog(c *gin.Context) {
 
 	defer utils.TimeStat(c.Request.Method + " " + c.Request.RequestURI)()
 	beginTime := time.Now()
-	requestID, _ := c.Get(pkg.TraceHeaderKey)
 	remoteIP := c.GetHeader("X-Forwarded-For")
 	if remoteIP == "" {
 		ip, _ := c.RemoteIP()
@@ -49,9 +48,8 @@ func AccessLog(c *gin.Context) {
 		log.Error("AccessLog - cloneRequestBody error:", err)
 	}
 
-	log.DefaultLogger().Infof("request| userId=%s %s %s %s %s %s %s %s\n",
+	log.Infof("request| userId=%s %s %s %s %s %s %s\n",
 		getUserId(c),
-		requestID,
 		remoteIP,
 		c.Request.Method,
 		c.Request.RequestURI,
@@ -66,9 +64,9 @@ func AccessLog(c *gin.Context) {
 
 	contentType := c.Writer.Header().Get("Content-Type")
 	if strings.Contains(contentType, "json") {
-		log.DefaultLogger().Infof("%v|response| %s %v %s\n", time.Now().Sub(beginTime), requestID, c.Writer.Status(), blw.body.String())
+		log.Infof("%v|response| %v %s\n", time.Now().Sub(beginTime), c.Writer.Status(), blw.body.String())
 	} else {
-		log.DefaultLogger().Infof("%v|response| %s %v %s\n", time.Now().Sub(beginTime), requestID, c.Writer.Status(), contentType)
+		log.Infof("%v|response| %v %s\n", time.Now().Sub(beginTime), c.Writer.Status(), contentType)
 	}
 }
 

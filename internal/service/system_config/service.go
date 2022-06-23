@@ -1,16 +1,15 @@
 package system_config
 
 import (
-	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/pkg/db"
 	"strings"
 )
 
-func Init() {
-	interfaces.S.Config = &service{}
-}
-
 type service struct{}
+
+func NewService() *service {
+	return &service{}
+}
 
 type ConfigDO struct {
 	Key   string

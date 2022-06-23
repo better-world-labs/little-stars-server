@@ -53,6 +53,15 @@ type (
 		RecordsCount   *int       `xorm:"-" json:"recordsCount,omitempty"`
 	}
 
+	DonationHonor struct {
+		TotalDonatedPoints int      `json:"totalDonatedPoints"`
+		EquivalentRMB      int      `json:"equivalentRMB"`
+		EquivalentRMBUnit  string   `json:"equivalentRMBUnit"`
+		RegisteredDays     int      `json:"registeredDays"`
+		ExceedPercents     int      `json:"exceedPercents"`
+		Medals             []string `json:"medals"`
+	}
+
 	DonationWithUserDonated struct {
 		Donation
 
@@ -65,11 +74,12 @@ type (
 	}
 
 	DonationApply struct {
-		Name   string `json:"name" xorm:"name"`
-		Sex    string `json:"sex" xorm:"sex"`
-		Region string `json:"region" xorm:"region"`
-		Mobile string `json:"mobile" xorm:"mobile"`
-		Job    string `json:"job" xorm:"job"`
+		Name      string `json:"name" xorm:"name"`
+		Sex       string `json:"sex" xorm:"sex"`
+		Region    string `json:"region" xorm:"region"`
+		Mobile    string `json:"mobile" xorm:"mobile"`
+		Job       string `json:"job" xorm:"job"`
+		Community string `json:"community"`
 	}
 )
 

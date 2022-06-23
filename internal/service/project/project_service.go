@@ -1,7 +1,6 @@
 package project
 
 import (
-	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/interfaces/service"
@@ -24,14 +23,11 @@ const (
 	Level5 = "星耀"
 )
 
-func init() {
-	if interfaces.S.Project == nil {
-		interfaces.S.Project = &Service{}
-	}
+func NewProjectService() *Service {
+	return &Service{}
 }
 
 type Service struct {
-	service.ProjectService
 }
 
 type UserDO struct {

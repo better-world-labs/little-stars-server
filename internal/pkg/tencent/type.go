@@ -8,13 +8,10 @@ type CreateReq struct {
 
 // 腾讯地点云表结构
 type TblData struct {
-	ID         string   `json:"id,omitempty"`
-	UdID       string   `json:"ud_id,omitempty"`
-	Title      string   `json:"title,omitempty"`
-	Location   Location `json:"location,omitempty"`
-	Polygon    string   `json:"polygon,omitempty"`
-	CreateTime int64    `json:"create_time,omitempty"`
-	UpdateTime int64    `json:"update_time,omitempty"`
+	ID       string   `json:"id,omitempty"`
+	UdID     string   `json:"ud_id,omitempty"`
+	Title    string   `json:"title,omitempty"`
+	Location Location `json:"location,omitempty"`
 }
 
 // 位置

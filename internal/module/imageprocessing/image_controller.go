@@ -3,10 +3,9 @@ package imageprocessing
 import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
+	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/module/cert"
 	"aed-api-server/internal/module/img"
-	"aed-api-server/internal/module/skill"
-	"aed-api-server/internal/module/user"
 	"aed-api-server/internal/pkg/asserts"
 	"aed-api-server/internal/pkg/base"
 	"aed-api-server/internal/pkg/config"
@@ -18,7 +17,9 @@ import (
 	"fmt"
 	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
+	"github.com/skip2/go-qrcode"
+	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 	"image"
 	"image/color"
 	"image/draw"
@@ -33,29 +34,41 @@ import (
 
 // ShareController TODO 后续整理代码
 type ShareController struct {
-	skill        skill.Service
+	Process service.IImageProcess `inject:"-"`
+
 	qrcodeConfig config.MiniProgramQrcodeConfig
-	userService  user.Service
-	certCreator  cert.ImageCreator
 	uploadDir    string
+	certCreator  cert.ImageCreator
+
+	UserService service.UserServiceOld `inject:"-"`
+	Skill       service.SkillService   `inject:"-"`
 }
 
-func NewShareController(skillService skill.Service, qrcodeConfig config.MiniProgramQrcodeConfig, uploadDir string) *ShareController {
+func NewShareController(qrcodeConfig config.MiniProgramQrcodeConfig, uploadDir string) *ShareController {
 	creator, err := cert.NewImageCreatorDefaultAssert()
 	if err != nil {
 		panic(err)
 	}
 	return &ShareController{
-		skill:        skillService,
 		qrcodeConfig: qrcodeConfig,
-		userService:  user.NewService(nil),
 		certCreator:  creator,
 		uploadDir:    uploadDir,
 	}
 }
 
+func (con *ShareController) MountNoAuthRouter(r *route.Router) {
+	r.GET("image-processing/qrcode", con.RenderQrCode)
+	r.GET("image-processing/share/essay", con.RenderShareEssay)
+	r.GET("image-processing/share/donation", con.RenderShareDonation)
+	r.GetOriginRouter().GET("image-processing/share/cert", con.RenderSharedCert)
+	r.GetOriginRouter().GET("image-processing/share/medal", con.RenderSharedMedal)
+	r.GetOriginRouter().GET("image-processing/resource/medal", con.RenderSharedMedal)
+	r.GetOriginRouter().GET("image-processing/resource/cert", con.RenderResourceCert)
+	r.GetOriginRouter().GET("image-processing/resource/evidence", con.RenderResourceEvidence)
+}
+
 func (con *ShareController) RenderSharedCert(c *gin.Context) {
-	var certEntity *skill.UserCertEntity = nil
+	var certEntity *entities.UserCertEntity = nil
 	var userId int64
 	err := lookUpAndGenPic(c, func() (string, string, *time.Time) {
 		projectId, exists := c.GetQuery("projectId")
@@ -68,18 +81,17 @@ func (con *ShareController) RenderSharedCert(c *gin.Context) {
 		userId, err = strconv.ParseInt(accountId, 10, 64)
 		utils.MustNil(err, base.WrapError("imageprocessing", "invalid param", err))
 
-		certEntity, exists, err = con.skill.GetUserCertForProject(userId, pId)
+		certEntity, exists, err = con.Skill.GetUserCertForProject(userId, pId)
 		utils.MustTrue(exists, base.NewError("imageprocessing", "certEntity not exists"))
 		return fmt.Sprintf("%s/redirect/cert/share_%s_%s.png", con.uploadDir, projectId, accountId), "", nil
 	}, func(writer *io.PipeWriter) {
 		err := con.DoRenderCert(certEntity.Img["origin"].(string), writer, userId)
 		if err != nil {
-			log.DefaultLogger().Errorf("gen pic err:%v", err)
+			log.Errorf("gen pic err:%v", err)
 		}
 	})
-	if err != nil {
-		response.ReplyError(c, err)
-	}
+
+	log.Errorf("RenderShareCert error: %v\n", err)
 }
 
 func helpTime() (today string, todayEnd time.Time) {
@@ -91,7 +103,7 @@ func helpTime() (today string, todayEnd time.Time) {
 
 func (con *ShareController) RenderSharedMedal(c *gin.Context) {
 	var mId int64
-	var account *user.User
+	var account *entities.User
 	var err error
 	medalId, exists := c.GetQuery("medalId")
 	utils.MustTrue(exists, base.NewError("imageprocessing", "invalid param"))
@@ -104,7 +116,7 @@ func (con *ShareController) RenderSharedMedal(c *gin.Context) {
 		userId, err := strconv.ParseInt(accountId, 10, 64)
 		utils.MustNil(err, base.WrapError("imageprocessing", "invalid param", err))
 
-		account, err = con.userService.GetUserByID(userId)
+		account, err = con.UserService.GetUserByID(userId)
 		utils.MustNil(err, err)
 
 		today, todayEnd := helpTime()
@@ -115,13 +127,11 @@ func (con *ShareController) RenderSharedMedal(c *gin.Context) {
 	}, func(writer *io.PipeWriter) {
 		err = DrawMedalShare(mId, account, writer, con.qrcodeConfig)
 		if err != nil {
-			log.DefaultLogger().Errorf("gen pic err:%v", err)
+			log.Errorf("gen pic err:%v", err)
 		}
 	})
 
-	if err != nil {
-		response.ReplyError(c, err)
-	}
+	log.Errorf("RenderShareMedal error: %v\n", err)
 }
 
 func (con *ShareController) DoRenderCert(certUrl string, writer io.Writer, accountID int64) error {
@@ -147,8 +157,8 @@ func (con *ShareController) DoRenderCert(certUrl string, writer io.Writer, accou
 }
 
 func (con *ShareController) RenderResourceCert(c *gin.Context) {
-	var account *user.User = nil
-	var certEntity *skill.UserCertEntity = nil
+	var account *entities.User = nil
+	var certEntity *entities.UserCertEntity = nil
 	c.Header("Content-Type", "image/png")
 	c.Header("Cache-Control", "public, max-age=86400")
 	err := lookUpAndGenPic(c, func() (string, string, *time.Time) {
@@ -158,11 +168,11 @@ func (con *ShareController) RenderResourceCert(c *gin.Context) {
 		accountId, err := strconv.ParseInt(accountIdStr, 10, 64)
 		utils.MustNil(err, err)
 
-		account, err = con.userService.GetUserByID(accountId)
+		account, err = con.UserService.GetUserByID(accountId)
 		utils.MustNil(err, err)
 
 		//TODO 这里暂时写死了projectId，后续改为直接传certId
-		certEntity, exists, err = con.skill.GetUserCertForProject(accountId, 1)
+		certEntity, exists, err = con.Skill.GetUserCertForProject(accountId, 1)
 		if err != nil {
 			response.ReplyError(c, err)
 			return "", "", nil
@@ -175,20 +185,19 @@ func (con *ShareController) RenderResourceCert(c *gin.Context) {
 	}, func(writer *io.PipeWriter) {
 		err := con.certCreator.Create(account.Avatar, account.Nickname, "\"茫茫人海之中，去挽救下一个倒地昏迷的人吧\"", time.Time(certEntity.Created), writer)
 		if err != nil {
-			log.DefaultLogger().Errorf("gen pic err:%v", err)
+			log.Errorf("gen pic err:%v", err)
 		}
 	})
-	if err != nil {
-		response.ReplyError(c, err)
-	}
+
+	log.Errorf("RenderResourceCert error: %v\n", err)
 }
 
-func (con *ShareController) DoRenderResourceCert(account *user.User, entity *skill.UserCertEntity, writer io.Writer) error {
+func (con *ShareController) DoRenderResourceCert(account *entities.User, entity *entities.UserCertEntity, writer io.Writer) error {
 	return con.certCreator.Create(account.Avatar, account.Nickname, "\"茫茫人海之中，去挽救下一个倒地昏迷的人吧\"", time.Time(entity.Created), writer)
 }
 
 func (con *ShareController) RenderResourceEvidence(c *gin.Context) {
-	var account *user.User = nil
+	var account *entities.User = nil
 	var evi *entities.Evidence = nil
 	c.Header("Content-Type", "image/png")
 	c.Header("Cache-Control", "public, max-age=86400")
@@ -206,23 +215,21 @@ func (con *ShareController) RenderResourceEvidence(c *gin.Context) {
 		utils.MustNil(err, base.NewError("imageprocessing", "get evidence error"))
 		utils.MustTrue(exists, base.NewError("imageprocessing", "not found"))
 
-		account, err = con.userService.GetUserByID(evi.AccountID)
+		account, err = con.UserService.GetUserByID(evi.AccountID)
 		utils.MustNil(err, base.NewError("imageprocessing", "get account error"))
-		utils.MustNil(err, base.NewError("imageprocessing", "get transaction error"))
 		return fmt.Sprintf("%s/redirect/evidence/%s_%v.png", con.uploadDir, category, businessKey), "", nil
 	}, func(writer *io.PipeWriter) {
 		err := con.DoRenderResourceEvidence(account, evi, writer)
 		if err != nil {
-			log.DefaultLogger().Errorf("gen pic err:%v", err)
+			log.Errorf("gen pic err:%v", err)
 		}
 	})
-	if err != nil {
-		response.ReplyError(c, err)
-	}
+
+	log.Errorf("RenderResourceEvidence err: %v\n", err)
 }
 
 // DoRenderResourceEvidenceSimpleCategoryCertOrMedal  证书与勋章可以复用存证结构
-func (con *ShareController) DoRenderResourceEvidenceSimpleCategoryCertOrMedal(account *user.User, evi *entities.Evidence, writer io.Writer) error {
+func (con *ShareController) DoRenderResourceEvidenceSimpleCategoryCertOrMedal(account *entities.User, evi *entities.Evidence, writer io.Writer) error {
 	bgBytes, _ := asserts.GetResource("evidence_background_simple.jpg")
 
 	bgImg, _, err := image.Decode(bytes.NewReader(bgBytes))
@@ -277,7 +284,7 @@ func (con *ShareController) DoRenderResourceEvidenceSimpleCategoryCertOrMedal(ac
 	return jpeg.Encode(writer, bg, &jpeg.Options{Quality: 90})
 }
 
-func (con *ShareController) DoRenderResourceEvidence(account *user.User, evi *entities.Evidence, writer io.Writer) error {
+func (con *ShareController) DoRenderResourceEvidence(account *entities.User, evi *entities.Evidence, writer io.Writer) error {
 	switch evi.Category {
 	case entities.EvidenceCategoryCert, entities.EvidenceCategoryMedal:
 		return con.DoRenderResourceEvidenceSimpleCategoryCertOrMedal(account, evi, writer)
@@ -291,7 +298,7 @@ func (con *ShareController) DoRenderResourceEvidence(account *user.User, evi *en
 }
 
 // DoRenderResourceEvidenceSimpleDonation  数据结构与其他两种不一样
-func (con *ShareController) DoRenderResourceEvidenceSimpleDonation(account *user.User, evi *entities.Evidence, writer io.Writer) error {
+func (con *ShareController) DoRenderResourceEvidenceSimpleDonation(account *entities.User, evi *entities.Evidence, writer io.Writer) error {
 	bgBytes, _ := asserts.GetResource("evidence_background_first_donation.jpg")
 
 	bgImg, _, err := image.Decode(bytes.NewReader(bgBytes))
@@ -374,42 +381,28 @@ func (con *ShareController) DoRenderResourceEvidenceSimpleDonation(account *user
 	return jpeg.Encode(writer, bg, &jpeg.Options{Quality: 90})
 }
 
-func (con *ShareController) RenderShareDonation(c *gin.Context) {
-	var donationId int64
-	var account *user.User
-	var err error
-	donationIdStr, exists := c.GetQuery("donationId")
-	utils.MustTrue(exists, base.NewError("imageprocessing", "invalid param"))
-
-	accountId, exists := c.GetQuery("accountId")
-	utils.MustTrue(exists, base.NewError("imageprocessing", "invalid param"))
-	err = lookUpAndGenPic(c, func() (key string, url string, expired *time.Time) {
-
-		donationId, err = strconv.ParseInt(donationIdStr, 10, 64)
-		userId, err := strconv.ParseInt(accountId, 10, 64)
-		utils.MustNil(err, base.WrapError("imageprocessing", "invalid param", err))
-
-		account, err = con.userService.GetUserByID(userId)
-		utils.MustNil(err, err)
-
-		today, todayEnd := helpTime()
-		key = fmt.Sprintf("%s/redirect/donation/share_%s_%s", con.uploadDir, donationIdStr, accountId)
-		url = fmt.Sprintf("%s.png", key)
-		key = fmt.Sprintf("%s_%s", key, today)
-		return key, url, &todayEnd
-	}, func(writer *io.PipeWriter) {
-		err = DrawDonationShare(donationId, account, writer)
-		if err != nil {
-			log.DefaultLogger().Errorf("gen pic err:%v", err)
-		}
-	})
-
-	if err != nil {
-		response.ReplyError(c, err)
+func (con *ShareController) RenderShareDonation(c *gin.Context) (interface{}, error) {
+	var param struct {
+		RecordId  int64 `form:"recordId"`
+		AccountId int64 `form:"accountId"`
 	}
+
+	err := c.ShouldBindQuery(&param)
+	if err != nil {
+		return nil, response.NewIllegalArgumentError(err.Error())
+	}
+
+	url, err := con.Process.DrawDonationShareImage(param.RecordId, param.AccountId)
+	if err != nil {
+		return nil, err
+	}
+
+	c.Redirect(302, url)
+
+	return nil, nil
 }
 
-func (con *ShareController) RenderShareEssay(ctx *gin.Context) {
+func (con *ShareController) RenderShareEssay(ctx *gin.Context) (interface{}, error) {
 
 	var err error
 	var query = struct {
@@ -419,7 +412,7 @@ func (con *ShareController) RenderShareEssay(ctx *gin.Context) {
 		Sharer  int64  `form:"sharer" binding:"required"`
 	}{}
 
-	err = ctx.BindQuery(&query)
+	err = ctx.ShouldBindQuery(&query)
 	utils.MustNil(err, err)
 
 	// TODO 缓存还是有问题，需要做调整，这里先这样
@@ -434,13 +427,39 @@ func (con *ShareController) RenderShareEssay(ctx *gin.Context) {
 	//	return key, url, &todayEnd
 	//}, func(writer *io.PipeWriter) {
 	//	if err != nil {
-	//		log.DefaultLogger().Errorf("gen pic err:%v", err)
+	//		log.Errorf("gen pic err:%v", err)
 	//	}
 	//})
 
+	return nil, err
+}
+
+func (con ShareController) RenderQrCode(c *gin.Context) (interface{}, error) {
+	param := struct {
+		Content string `form:"content" binding:"required,max=128"`
+		Size    int    `form:"size" binding:"required"`
+	}{}
+
+	err := c.ShouldBindQuery(&param)
 	if err != nil {
-		response.ReplyError(ctx, err)
+		return nil, err
 	}
+
+	code, err := qrcode.New(param.Content, qrcode.Medium)
+	if err != nil {
+		c.Status(400)
+		_, _ = c.Writer.Write([]byte(err.Error()))
+		return nil, err
+	}
+	code.DisableBorder = true
+
+	c.Header("Cache-Control", "public, max-age=86400")
+	err = code.Write(param.Size, c.Writer)
+	if err != nil {
+		log.Errorf("gen pic err:%v", err)
+	}
+
+	return nil, nil
 }
 
 func DrawEssayShare(essayId int64, source string, sharer int64, _url string, writer io.Writer) error {
@@ -491,7 +510,7 @@ func drawEssayShareDefault(essay *entities.Essay, source string, sharer int64, _
 	background := image.NewRGBA(bgImage.Bounds())
 	draw.Draw(background, background.Bounds(), bgImage, image.Point{}, draw.Over)
 
-	err = img.DrawTextAutoBreakRune(background, []rune(fmt.Sprintf("《%s》", essay.Title)), 130, 944, 20, 10, 38, color.RGBA{R: 9, G: 109, B: 235, A: 255})
+	err = img.DrawTextAutoBreakRune(background, []rune(fmt.Sprintf("《%s》", essay.Title)), 130, 944, 16, 25, 38, color.RGBA{R: 9, G: 109, B: 235, A: 255})
 	if err != nil {
 		return err
 	}

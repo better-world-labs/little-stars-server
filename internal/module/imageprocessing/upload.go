@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	"github.com/gin-gonic/gin"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"sync"
 	"time"
@@ -96,7 +96,7 @@ func lookUpAndGenPic(
 				}()
 				err := upload(url, genFile)
 				if err != nil {
-					log.DefaultLogger().Errorf("%s pic gen error:%v", key, err)
+					log.Errorf("%s pic gen error:%v", key, err)
 				}
 				savePicKeyToDb(key, saveUrl, expired)
 			}()
@@ -120,7 +120,7 @@ func savePicKeyToDb(key string, url string, expired *time.Time) {
 	redirect := imageRedirect{Key: key, Url: url, Expired: expired}
 	_, err := db.Insert("image_redirect", redirect)
 	if err != nil {
-		log.DefaultLogger().Errorf("savePicKeyToDb error:%v", err)
+		log.Errorf("savePicKeyToDb error:%v", err)
 	}
 }
 

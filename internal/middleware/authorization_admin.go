@@ -5,10 +5,9 @@ import (
 	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/db"
-	"aed-api-server/internal/pkg/global"
 	"aed-api-server/internal/pkg/response"
 	"github.com/gin-gonic/gin"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"strings"
 )
 
@@ -25,7 +24,7 @@ func (a *AuthorizationAdmin) AuthorizeAdmin(c *gin.Context) {
 	split := strings.Split(authorization, " ")
 
 	if len(split) != 2 || split[0] != "Bearer" || split[1] == "" {
-		response.ReplyError(c, global.ErrorInvalidAccessToken)
+		response.HTTPComplete(c, 401, response.NewResponse(-1, "invalid token", nil))
 		c.Abort()
 		return
 	}
@@ -33,8 +32,8 @@ func (a *AuthorizationAdmin) AuthorizeAdmin(c *gin.Context) {
 	token := split[1]
 	claims, err := user.ParseToken(token)
 	if err != nil {
-		log.DefaultLogger().Errorf("handle authorization: %v", err)
-		response.ReplyError(c, global.ErrorInvalidAccessToken)
+		log.Errorf("handle authorization: %v", err)
+		response.HTTPComplete(c, 401, response.NewResponse(-1, "invalid token", nil))
 		c.Abort()
 		return
 	}
@@ -43,8 +42,8 @@ func (a *AuthorizationAdmin) AuthorizeAdmin(c *gin.Context) {
 	defer session.Close()
 
 	if claims.ID != a.backend.Id {
-		log.DefaultLogger().Errorf("handle authorization: %v", err)
-		response.ReplyError(c, global.ErrorInvalidAccessToken)
+		log.Errorf("handle authorization: %v", err)
+		response.HTTPComplete(c, 401, response.NewResponse(-1, "invalid token", nil))
 		c.Abort()
 		return
 	}

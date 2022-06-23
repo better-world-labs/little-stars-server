@@ -2,14 +2,14 @@ package test
 
 import (
 	"aed-api-server/internal/module/aid"
-	"aed-api-server/internal/module/user"
 	"aed-api-server/internal/pkg/db"
+	"aed-api-server/internal/service"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-var svc = aid.NewService(user.NewService(nil))
+var svc = service.NewAidService(service.NewUserServiceOld(nil))
 
 func init() {
 	db.InitEngine("mysql", "root:1qaz.2wsx@tcp(116.62.220.222:3306)/aed?charset=utf8mb4")

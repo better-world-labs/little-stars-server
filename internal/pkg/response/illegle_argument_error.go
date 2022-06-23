@@ -5,7 +5,7 @@ type IllegalArgumentError struct {
 }
 
 func NewIllegalArgumentError(message string) error {
-	return &IllegalArgumentError{}
+	return &IllegalArgumentError{message: message}
 }
 
 func (e IllegalArgumentError) Error() string {

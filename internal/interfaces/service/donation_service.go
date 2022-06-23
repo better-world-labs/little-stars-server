@@ -8,7 +8,7 @@ import (
 type DonationService interface {
 
 	// Donate 积分捐献
-	Donate(record *entities.DonationRecord) (*entities.Donation, error)
+	Donate(record *entities.DonationRecord) (*entities.DonationRecord, error)
 
 	// CreateDonation 创建一个捐献项目
 	CreateDonation(donation *entities.Donation) error
@@ -44,6 +44,8 @@ type DonationService interface {
 	ListUsersRecordsTop(donationId int64, top int) ([]*entities.DonationRecord, error)
 
 	Apply(apply entities.DonationApply, userId int64) error
+
+	GetDonationHonor(user *entities.User) (*entities.DonationHonor, error)
 
 	//CountUserRecord 获取用户捐献次数
 	CountUserRecord(userId int64) (int, error)

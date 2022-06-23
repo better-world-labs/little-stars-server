@@ -3,12 +3,16 @@ package user_config
 import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/pkg"
-	"aed-api-server/internal/pkg/response"
 	"errors"
 	"github.com/gin-gonic/gin"
+	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 )
 
 type Controller struct {
+}
+
+func NewController() *Controller {
+	return &Controller{}
 }
 
 var SupportedKeys = []string{
@@ -25,43 +29,46 @@ func keyValidator(key string) bool {
 	return false
 }
 
-func (Controller) PutConfig(c *gin.Context) {
-	userId := c.MustGet(pkg.AccountIDKey).(int64)
-	key := c.Query("key")
-
-	if !keyValidator(key) {
-		response.ReplyError(c, errors.New("key only support DEVICE_PICKET、STUDY"))
-		return
-	}
-	data, err := c.GetRawData()
-	if err != nil {
-		response.ReplyError(c, err)
-		return
-	}
-	_, err = interfaces.S.UserConfig.PutConfig(userId, key, string(data))
-	if err != nil {
-		response.ReplyError(c, err)
-		return
-	}
-	response.ReplyOK(c, nil)
+func (c Controller) MountAuthRouter(r *route.Router) {
+	configR := r.Group("/configs")
+	configR.GET("", c.GetConfig)
+	configR.PUT("", c.PutConfig)
 
 }
 
-func (Controller) GetConfig(c *gin.Context) {
+func (Controller) PutConfig(c *gin.Context) (interface{}, error) {
 	userId := c.MustGet(pkg.AccountIDKey).(int64)
 	key := c.Query("key")
 
 	if !keyValidator(key) {
-		response.ReplyError(c, errors.New("key only support DEVICE_PICKET、STUDY"))
-		return
+		return nil, errors.New("key only support DEVICE_PICKET、STUDY")
+	}
+	data, err := c.GetRawData()
+	if err != nil {
+		return nil, err
+	}
+	_, err = interfaces.S.UserConfig.PutConfig(userId, key, string(data))
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func (Controller) GetConfig(c *gin.Context) (interface{}, error) {
+	userId := c.MustGet(pkg.AccountIDKey).(int64)
+	key := c.Query("key")
+
+	if !keyValidator(key) {
+		return nil, errors.New("key only support DEVICE_PICKET、STUDY")
 	}
 
 	config, err := interfaces.S.UserConfig.GetConfig(userId, key)
 	if err != nil {
-		response.ReplyError(c, err)
-		return
+		return nil, err
 	}
 	config = "{\"code\":0,\"data\":" + config + "}"
 	c.Header("Content-Type", "application/json; charset=utf-8")
 	c.String(200, config)
+
+	return nil, nil
 }

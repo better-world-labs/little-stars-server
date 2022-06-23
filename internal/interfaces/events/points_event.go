@@ -49,6 +49,12 @@ type (
 		ClockInId int64              `json:"clockInId"`
 		Job       *entities.UserTask `json:"job"`
 	}
+
+	PointsEventTypeRewardParams struct {
+		JobId       int64  `json:"jobId"`
+		Points      int    `json:"points"`
+		Description string `json:"description"`
+	}
 )
 
 // TODO 所有事件都要有Encode/Decode 的单元测试
@@ -108,6 +114,8 @@ func (p *PointsEvent) UnmarshalJSON(b []byte) error {
 	case entities.PointsEventTypeSignEarly:
 		p.Params = &PointsEventTypeSignEarlyParams{}
 
+	case entities.PointsEventTypeReward:
+		p.Params = &PointsEventTypeRewardParams{}
 	default:
 		p.Params = make(map[string]interface{}, 0)
 	}

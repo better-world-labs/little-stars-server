@@ -1,14 +1,14 @@
 package task_bubble
 
 import (
-	"aed-api-server/internal/interfaces"
+	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/domain/emitter"
 	"encoding/json"
 	"github.com/go-xorm/xorm"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -30,10 +30,6 @@ const (
 	TaskDonation     = -6
 	TaskDonationName = "捐献积分"
 )
-
-func Init() {
-	interfaces.S.TaskBubble = &MeritTreeTaskTaskBubbleService{}
-}
 
 type TreeTaskBubble struct {
 	Id           int64
@@ -133,7 +129,7 @@ func InitEventHandler() {
 
 func defGenFn(def service.MeritTreeTaskTaskBubbleDefine) emitter.DomainEventHandler {
 	return func(event emitter.DomainEvent) error {
-		evt := event.(events.UserEvent)
+		evt := event.(events.UserBaseEvent)
 
 		if condition, b := def.ExecuteCondition(evt.GetUserId()); condition {
 			eventJson, _ := json.Marshal(event)
@@ -158,13 +154,17 @@ func defGenFn(def service.MeritTreeTaskTaskBubbleDefine) emitter.DomainEventHand
 
 type MeritTreeTaskTaskBubbleService struct{}
 
+func NewMeritTreeTaskBubbleService() *MeritTreeTaskTaskBubbleService {
+	return &MeritTreeTaskTaskBubbleService{}
+}
+
 //GetTreeBubblesCount 获取任务气泡数量
 func (*MeritTreeTaskTaskBubbleService) GetTreeBubblesCount(userId int64) (int, error) {
 	return countEffectTaskBubbleByUserId(userId)
 }
 
 //GetTreeBubbles 获取任务气泡
-func (*MeritTreeTaskTaskBubbleService) GetTreeBubbles(userId int64) (bubbles []*service.Bubble, err error) {
+func (*MeritTreeTaskTaskBubbleService) GetTreeBubbles(userId int64) (bubbles []*entities.Bubble, err error) {
 	list, err := findBubblesByUserId(userId)
 	if err != nil {
 		return nil, err
@@ -172,9 +172,9 @@ func (*MeritTreeTaskTaskBubbleService) GetTreeBubbles(userId int64) (bubbles []*
 
 	for i := range list {
 		item := list[i]
-		bubbles = append(bubbles, &service.Bubble{
+		bubbles = append(bubbles, &entities.Bubble{
 			Id:     item.BubbleId,
-			Type:   service.BubbleTodoTask,
+			Type:   entities.BubbleTodoTask,
 			Name:   item.Name,
 			Points: item.Points,
 		})

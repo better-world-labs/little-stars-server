@@ -11,7 +11,7 @@ import (
 	"aed-api-server/internal/pkg/utils"
 	"errors"
 	"fmt"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"strconv"
 	"time"
 
@@ -19,15 +19,13 @@ import (
 )
 
 const (
-	TableNameDonation = "donation"
-	TableNameRecord   = "donation_record"
+	TableNameDonation     = "donation"
+	TableNameRecord       = "donation_record"
+	DefaultRMBConverter   = 0.036
+	RMBConverterConfigKey = "RMBConverter"
 )
 
 type Service struct {
-}
-
-func init() {
-	interfaces.S.Donation = NewService()
 }
 
 func NewService() service2.DonationService {
@@ -217,7 +215,7 @@ func (s *Service) GetDonationRecordCount(id int64) (int64, error) {
 	return count, err
 }
 
-func (s *Service) Donate(record *entities.DonationRecord) (*entities.Donation, error) {
+func (s *Service) Donate(record *entities.DonationRecord) (*entities.DonationRecord, error) {
 	err := db.Begin(func(session *xorm.Session) error {
 		donation, exists, err := s.GetDonationByIdForUpdate(session, record.DonationId)
 		if err != nil {
@@ -268,6 +266,9 @@ func (s *Service) Donate(record *entities.DonationRecord) (*entities.Donation, e
 				"lastTransactionId": "", //TODO
 			},
 		)
+		if err != nil {
+			return err
+		}
 		//})
 
 		count, err := s.CountUserRecord(record.UserId)
@@ -293,11 +294,11 @@ func (s *Service) Donate(record *entities.DonationRecord) (*entities.Donation, e
 		return nil, err
 	}
 
-	donation, _, err := s.GetDonationDetail(record.DonationId)
-	return donation, err
+	return record, err
 }
 
 func (s *Service) CountUserRecord(userId int64) (int, error) {
+	defer utils.TimeStat("CountUserRecord")()
 	var count int64
 	var err error
 	err = db.Transaction(func(session *xorm.Session) error {
@@ -324,6 +325,27 @@ func (s *Service) ListRecords(donationId int64, latest int) ([]*entities.Donatio
 
 	err := session.Find(&records)
 	return records, err
+}
+
+func (s *Service) ListUsersDonationRank() ([]int64, error) {
+	var records []*struct {
+		UserId int64
+	}
+
+	var userIds []int64
+	sql := fmt.Sprintf(`
+		select user_id, sum(points) as points
+		from %s 
+		group by user_id
+		order by points desc
+    `, TableNameRecord)
+	err := db.SQL(sql).Find(&records)
+
+	for _, u := range records {
+		userIds = append(userIds, u.UserId)
+	}
+
+	return userIds, err
 }
 
 func (s *Service) ListUsersRecordsTop(
@@ -357,4 +379,73 @@ func (s *Service) StatDonationByUserId(userId int64) (stat entities.DonationStat
 	`, userId).Get(&stat)
 
 	return stat, err
+}
+
+func (s *Service) GetDonationHonor(user *entities.User) (*entities.DonationHonor, error) {
+	all, err := utils.PromiseAll(func() (interface{}, error) {
+		return interfaces.S.Donation.StatDonationByUserId(user.ID)
+	}, func() (interface{}, error) {
+		return interfaces.S.UserMedal.GetUserMedalUrl(user.ID)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	points := all[0].(entities.DonationStat).DonationTotalPoints
+	rmb, err := ConvertRMB(points)
+	if err != nil {
+		return nil, err
+	}
+
+	registerDuration := time.Now().Sub(user.Created)
+	exceedPercents, err := s.ComputeExceedPercents(user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &entities.DonationHonor{
+		TotalDonatedPoints: points,
+		EquivalentRMB:      int(rmb + 0.5),
+		EquivalentRMBUnit:  "元",
+		RegisteredDays:     int(registerDuration / time.Hour / 24),
+		ExceedPercents:     exceedPercents,
+		Medals:             all[1].([]string),
+	}, nil
+}
+
+func ConvertRMB(points int) (float32, error) {
+	config, err := interfaces.S.Config.GetConfig(RMBConverterConfigKey)
+	converter := DefaultRMBConverter
+
+	if err != nil {
+		return 0, err
+	}
+
+	if config != "null" {
+		if configFloat, err := strconv.ParseFloat(config, 32); err == nil {
+			converter = configFloat
+		}
+	}
+
+	return float32(points) * float32(converter), nil
+}
+
+func (s *Service) ComputeExceedPercents(userId int64) (int, error) {
+	rankingUserIds, err := s.ListUsersDonationRank()
+	if err != nil {
+		return 0, err
+	}
+
+	total := len(rankingUserIds)
+	rank := total
+	for i := range rankingUserIds {
+		if rankingUserIds[i] == userId {
+			rank = i + 1
+			break
+		}
+	}
+
+	exceed := (float32(total)-float32(rank))/float32(total)*float32(100) + 0.5
+	return int(exceed), err
 }

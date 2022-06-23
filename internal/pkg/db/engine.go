@@ -7,9 +7,8 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/go-xorm/xorm"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"strings"
-	"time"
 	"xorm.io/core"
 )
 
@@ -26,11 +25,35 @@ func InitEngine(config MysqlConfig) {
 	}
 
 	engine = e
-	engine.SetConnMaxLifetime(config.MaxLifetime * time.Millisecond)
+	engine.SetConnMaxLifetime(config.MaxLifetime)
 	engine.SetMaxOpenConns(config.MaxOpen)
 	engine.SetMaxIdleConns(config.MaxIdleCount)
-	engine.ShowSQL(true)
-	engine.Logger().SetLevel(core.LOG_DEBUG)
+
+	engine.SetLogger(&dbLogger{showSql: true, Logger: log.StandardLogger()})
+}
+
+type dbLogger struct {
+	*log.Logger
+	showSql bool
+	level   core.LogLevel
+}
+
+func (l *dbLogger) Level() core.LogLevel {
+	return l.level
+}
+func (l *dbLogger) SetLevel(level core.LogLevel) {
+	l.level = level
+}
+
+func (l *dbLogger) ShowSQL(show ...bool) {
+	if len(show) > 0 {
+		l.showSql = show[0]
+	} else {
+		l.showSql = true
+	}
+}
+func (l *dbLogger) IsShowSQL() bool {
+	return l.showSql
 }
 
 func GetSession() *xorm.Session {
@@ -138,7 +161,7 @@ func WithTransaction(s *xorm.Session, f func() error) (err error) {
 
 func rollback(s *xorm.Session) error {
 	if err := s.Rollback(); err != nil {
-		log.DefaultLogger().Errorf("tx error: %v", err)
+		log.Errorf("tx error: %v", err)
 		return err
 	}
 
@@ -147,7 +170,7 @@ func rollback(s *xorm.Session) error {
 
 func commit(s *xorm.Session) error {
 	if err := s.Commit(); err != nil {
-		log.DefaultLogger().Errorf("tx commiet error: %v", err)
+		log.Errorf("tx commiet error: %v", err)
 		return err
 	}
 
@@ -172,4 +195,54 @@ func ArrayPlaceholder(n int) string {
 		p[i] = "?"
 	}
 	return strings.Join(p, ",")
+}
+
+func TupleOf(params ...interface{}) []interface{} {
+	var res []interface{}
+
+	for _, p := range params {
+		if arr, ok := p.([]int64); ok {
+			for _, a := range arr {
+				res = append(res, a)
+			}
+
+			continue
+		}
+
+		if arr, ok := p.([]int); ok {
+			for _, a := range arr {
+				res = append(res, a)
+			}
+
+			continue
+		}
+
+		if arr, ok := p.([]string); ok {
+			for _, a := range arr {
+				res = append(res, a)
+			}
+
+			continue
+		}
+
+		if arr, ok := p.([]bool); ok {
+			for _, a := range arr {
+				res = append(res, a)
+			}
+
+			continue
+		}
+
+		if arr, ok := p.([]interface{}); ok {
+			for _, a := range arr {
+				res = append(res, a)
+			}
+
+			continue
+		}
+
+		res = append(res, p)
+	}
+
+	return res
 }

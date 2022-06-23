@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/go-xorm/xorm"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"math"
 	"reflect"
 	"sort"
@@ -90,8 +90,8 @@ var schedulesMap map[entities.PointsEventType]*schedule = nil
 
 type pointsScheduler struct{}
 
-func init() {
-	interfaces.S.PointsScheduler = &pointsScheduler{}
+func NewPointScheduler() *pointsScheduler {
+	return &pointsScheduler{}
 }
 
 func (*pointsScheduler) ReloadSchedule() error {
@@ -199,6 +199,18 @@ func (s *pointsScheduler) BuildPointsEventTypeClockInDevice(userId int64, clockI
 	}
 }
 
+func (s *pointsScheduler) BuildPointsEventTypeReward(userId int64, jobId int64, points int, description string) *events.PointsEvent {
+	return &events.PointsEvent{
+		UserId:          userId,
+		PointsEventType: entities.PointsEventTypeReward,
+		Params: &events.PointsEventTypeRewardParams{
+			JobId:       jobId,
+			Points:      points,
+			Description: description,
+		},
+	}
+}
+
 func (s *pointsScheduler) DealPointsEvent(evt *events.PointsEvent) (*entities.DealPointsEventRst, error) {
 	if nil == schedulesMap {
 		err := s.ReloadSchedule()
@@ -215,6 +227,7 @@ func (s *pointsScheduler) DealPointsEvent(evt *events.PointsEvent) (*entities.De
 	var points = sch.Points
 	var err error
 	var expiredAt = time.Now().Add(time.Second * time.Duration(sch.PeakPeriod))
+	var description = ""
 	switch sch.PointsEventType {
 	case entities.PointsEventTypeWalk:
 		points, err = parseWalkParamsPoints(evt.Params, sch.Rules)
@@ -235,16 +248,17 @@ func (s *pointsScheduler) DealPointsEvent(evt *events.PointsEvent) (*entities.De
 		points, err = parseMockExamPoint(evt.Params, sch.Rules)
 
 	case entities.PointsEventTypeReadNews:
-		has, err := interfaces.S.TaskBubble.HasReadNewsTask(evt.UserId)
-		if err != nil {
-			return nil, err
-		}
+		var has bool
+		has, err = interfaces.S.TaskBubble.HasReadNewsTask(evt.UserId)
 		if !has {
 			return nil, errors.New("not found task readNews")
 		}
+	case entities.PointsEventTypeReward:
+		points, description, err = parsePointsEventTypeRewardPoints(evt.Params, sch.Rules)
 	}
 
 	if err != nil {
+		log.Error("deal event params err:", err)
 		return nil, err
 	}
 
@@ -253,7 +267,7 @@ func (s *pointsScheduler) DealPointsEvent(evt *events.PointsEvent) (*entities.De
 		unReceive   int
 	)
 	err = db.Transaction(func(session *xorm.Session) error {
-		err = insertPoints(evt.UserId, points, sch.PointsEventType, evt.Params, expiredAt)
+		err = insertPoints(evt.UserId, points, sch.PointsEventType, description, evt.Params, expiredAt)
 		if err != nil {
 			return err
 		}
@@ -292,6 +306,14 @@ func (s *pointsScheduler) DealPointsEvent(evt *events.PointsEvent) (*entities.De
 	}, nil
 }
 
+func parsePointsEventTypeRewardPoints(params interface{}, rules []*scheduleRule) (int, string, error) {
+	args, ok := params.(*events.PointsEventTypeRewardParams)
+	if !ok {
+		return 0, "", errors.New("event params type error")
+	}
+	return args.Points, args.Description, nil
+}
+
 func completeTaskBubble(eventType entities.PointsEventType, userId int64) {
 	taskBubbleId := 0
 	switch eventType {
@@ -301,7 +323,6 @@ func completeTaskBubble(eventType entities.PointsEventType, userId int64) {
 	case entities.PointsEventTypeLearntVideo, entities.PointsEventTypeLearntCourse:
 		taskBubbleId = task_bubble.TaskAidLearn
 		break
-
 	case entities.PointsEventTypeReadNews:
 		taskBubbleId = task_bubble.TaskReadNews
 		break

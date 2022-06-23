@@ -59,7 +59,7 @@ func (s service) OssUpload(fileheader *multipart.FileHeader) (string, error) {
 	return fmt.Sprintf("http://%s/%s", s.c.Domain, objectName), nil
 }
 
-func (s service) GetUploadToken(accountID int64) (interface{}, error) {
+func (s service) GetUploadToken(prefix string, accountID int64) (interface{}, error) {
 	now := time.Now().Unix()
 	expire_end := now + ExpireTime
 	var tokenExpire = get_gmt_iso8601(expire_end)
@@ -68,7 +68,7 @@ func (s service) GetUploadToken(accountID int64) (interface{}, error) {
 	var config ConfigStruct
 	config.Expiration = tokenExpire
 	var condition []string
-	uploadDir := fmt.Sprintf("%s/%v/", s.c.UploadDir, accountID) // 上传目录 /aed/用户id/
+	uploadDir := fmt.Sprintf("%s%s/%v/", prefix, s.c.UploadDir, accountID) // 上传目录 /aed/用户id/
 	condition = append(condition, "starts-with")
 	condition = append(condition, "$key")
 	condition = append(condition, uploadDir)

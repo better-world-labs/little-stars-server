@@ -2,7 +2,7 @@ package task
 
 import (
 	"aed-api-server/internal/pkg/db"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 

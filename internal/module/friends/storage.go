@@ -1,8 +1,10 @@
 package friends
 
 import (
+	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
+	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/domain/emitter"
 	"github.com/go-xorm/xorm"
@@ -43,16 +45,6 @@ func listAll() ([]*Relationship, error) {
 	return slice, err
 }
 
-func listTree() ([]*RelationshipTreeNode, error) {
-	var slice []*RelationshipTreeNode
-	err := db.Table(TableNameRelationship).Find(&slice)
-	if err != nil {
-		return nil, err
-	}
-
-	return ParseTrees(slice)
-}
-
 func hasFriend(userId int64) (bool, error) {
 	return db.Table(TableNameRelationship).Where("parent_id = ?", userId).Exist()
 }
@@ -71,13 +63,20 @@ func createProspective(prospective *Prospective) error {
 				return err
 			}
 
-			err = emitter.Emit(&events.PointsEvent{
-				PointsEventType: entities.PointsEventTypeInvite,
-				UserId:          prospective.ParentId,
-				Params: map[string]interface{}{
-					"beInvitedOpenId": prospective.OpenId,
-				},
-			})
+			times, err := interfaces.S.Points.GetUserPointsEventTimes(prospective.ParentId, entities.PointsEventTypeInvite)
+			if err != nil {
+				return err
+			}
+
+			if times < pkg.UserPointsMaxTimesInvite {
+				err = emitter.Emit(&events.PointsEvent{
+					PointsEventType: entities.PointsEventTypeInvite,
+					UserId:          prospective.ParentId,
+					Params: map[string]interface{}{
+						"beInvitedOpenId": prospective.OpenId,
+					},
+				})
+			}
 
 			return err
 		})

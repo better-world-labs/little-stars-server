@@ -1,7 +1,6 @@
 package point
 
 import (
-	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/response"
@@ -44,18 +43,18 @@ type Flow struct {
 	CreatedAt     time.Time `json:"createdAt"`
 }
 
-func init() {
-	interfaces.S.Points = service{}
-}
-
 type service struct{}
+
+func NewService() *service {
+	return &service{}
+}
 
 // GetUserPointsEventTimes 读取用户对某个行为的积分次数
 func (s service) GetUserPointsEventTimes(userId int64, eventType entities.PointsEventType) (int64, error) {
 	return db.Table("point_flow").Where("user_id = ? and points_event_type = ?", userId, eventType).Count()
 }
 
-func insertPoints(userId int64, points int, pointsEventType entities.PointsEventType, eventParam interface{}, expiredAt time.Time) error {
+func insertPoints(userId int64, points int, pointsEventType entities.PointsEventType, desc string, eventParam interface{}, expiredAt time.Time) error {
 	return db.Transaction(func(session *xorm.Session) error {
 		eventParamJson, err := json.Marshal(eventParam)
 		if err != nil {
@@ -68,6 +67,7 @@ func insertPoints(userId int64, points int, pointsEventType entities.PointsEvent
 			Params:          string(eventParamJson),
 			PeckExpiredAt:   expiredAt,
 			Points:          points,
+			Description:     desc,
 			CreatedAt:       time.Now(),
 		})
 		if err != nil {
@@ -335,4 +335,109 @@ func (s service) AddPoint(userId int64, points int, description string, eventTyp
 		}
 		return nil
 	})
+}
+
+// GetAllPointsExpiringUserIds 获取duration ms 内 存在积分将过期的用户
+func (s service) GetAllPointsExpiringUserIds(duration time.Duration) ([]int64, error) {
+	now := time.Now()
+	expiredTime := now.Add(duration * time.Millisecond)
+
+	type Dto struct {
+		UserId int64
+	}
+
+	list := make([]*Dto, 0)
+
+	err := db.SQL(`
+		select distinct
+			user_id
+		from point_flow
+		where
+			status = 0
+			and peck_expired_at >now()
+			and peck_expired_at < ?
+	`, expiredTime).Find(&list)
+
+	if err != nil {
+		return nil, err
+	}
+
+	userIds := make([]int64, 0)
+	for _, user := range list {
+		userIds = append(userIds, user.UserId)
+	}
+	return userIds, nil
+}
+
+func (s service) StatExpiringPoints(userId int64) (points int, minExpiredAt time.Time, err error) {
+	dto := struct {
+		Points       int
+		MinExpiredAt time.Time
+	}{}
+
+	existed, err := db.SQL(`
+		select
+			sum(points) as points,
+			min(peck_expired_at) as min_expired_at
+		from point_flow
+		where
+			user_id =?
+			and status = 0
+			and peck_expired_at > now()
+	`, userId).Get(&dto)
+	if err != nil {
+		return 0, time.Time{}, err
+	}
+
+	if !existed {
+		return 0, time.Time{}, nil
+	}
+	return dto.Points, dto.MinExpiredAt, nil
+}
+
+func (s service) IsTodayHasPointFlowOfType(userId int64, pointsEventType entities.PointsEventType) (bool, error) {
+	return db.Exist(`
+		select 1
+		from point_flow
+		where
+			user_id = ?
+			and points_event_type = ?
+			and created_at > current_date()
+	`, userId, pointsEventType)
+}
+
+func (s service) IsTodayHasPointFlowOfTypeBatched(userIds []int64, pointsEventType entities.PointsEventType) ([]int64, error) {
+	var arr []*struct{ UserId int64 }
+	var res []int64
+
+	err := db.Table("point_flow").
+		In("user_id", userIds).
+		And("points_event_type = ?", pointsEventType).
+		And("created_at > current_date()").Cols("user_id").Find(&arr)
+
+	for _, s := range arr {
+		res = append(res, s.UserId)
+	}
+
+	return res, err
+}
+
+func (s service) Detail(accountID int64) ([]*entities.Point, error) {
+	sess := db.GetSession()
+	defer sess.Close()
+
+	list := make([]*entities.Point, 0)
+	err := sess.Where("account_id = ?", accountID).OrderBy("id desc").Find(&list)
+
+	return list, err
+}
+
+func (s service) TotalPoints(accountID int64) (float64, error) {
+	sess := db.GetSession()
+	defer sess.Close()
+
+	table := new(entities.Point)
+	total, err := sess.Where("account_id = ?", accountID).Sum(table, "points")
+
+	return float64(total), err
 }

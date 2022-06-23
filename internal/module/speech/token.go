@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 var AidSmsPathTokenKeyPrefix = "AID_SMS_PATH_TOKEN"
@@ -72,7 +72,7 @@ func (t tokenService) PutToken(token, value string) error {
 	conn := cache.GetConn()
 	defer conn.Close()
 
-	log.DefaultLogger().Infof("PutToken: token=%s, value=%s", token, value)
+	log.Infof("PutToken: token=%s, value=%s", token, value)
 	reply, err := conn.Do("SET", t.getKey(token), value, "PX", 3600000*24)
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func (t tokenService) RemoveToken(token string) (int64, error) {
 	conn := cache.GetConn()
 	defer conn.Close()
 
-	log.DefaultLogger().Infof("RomoveToken: token=%s", token)
+	log.Infof("RomoveToken: token=%s", token)
 	reply, err := conn.Do("DEL", t.getKey(token))
 	if err != nil {
 		return 0, err

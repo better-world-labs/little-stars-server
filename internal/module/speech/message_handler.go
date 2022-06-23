@@ -1,23 +1,27 @@
 package speech
 
 import (
+	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
-	"aed-api-server/internal/module/user"
+	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg/base"
 	"aed-api-server/internal/pkg/domain/emitter"
 	"aed-api-server/internal/pkg/location"
 	"errors"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
-var userService = user.NewService(nil)
+func userService() service.UserServiceOld {
+	return interfaces.S.UserOld
+}
+
 var n PhoneNotifier = AliyunPhoneNotifier{}
 
 const Module = "Speech"
 
 type UserFinder interface {
-	FindUser(position location.Coordinate) ([]*user.User, error)
+	FindUser(position location.Coordinate) ([]*entities.User, error)
 }
 
 func onAidPublished(event emitter.DomainEvent) error {
@@ -29,22 +33,22 @@ func onAidPublished(event emitter.DomainEvent) error {
 
 	err := caller.Call(&re.HelpInfo)
 	if err != nil {
-		log.DefaultLogger().Errorf("Notifier: onAidPublished error: %v", err)
+		log.Errorf("Notifier: onAidPublished error: %v", err)
 		return err
 	}
 
 	err = DoNotify(&re.HelpInfo)
 	if err != nil {
-		log.DefaultLogger().Errorf("Notifier: onAidPublished error: %v", err)
+		log.Errorf("Notifier: onAidPublished error: %v", err)
 	} else {
-		log.DefaultLogger().Info("Notifier: onAidPublished succeed")
+		log.Info("Notifier: onAidPublished succeed")
 	}
 
 	return nil
 }
 
 func DoNotify(helpInfo *entities.HelpInfo) error {
-	publisher, err := userService.GetUserByID(helpInfo.Publisher)
+	publisher, err := userService().GetUserByID(helpInfo.Publisher)
 	if err != nil {
 		return base.WrapError(Module, "find users to notify error", err)
 	}
@@ -67,11 +71,11 @@ func DoNotify(helpInfo *entities.HelpInfo) error {
 		//address := fmt.Sprintf("%s %s", r.Address, r.DetailAddress)
 		err = n.Notify(*account, publisher.Nickname, helpInfo.Address)
 		if err != nil {
-			log.DefaultLogger().Errorf("do notify for mobile %s error: %v", account.Mobile, err)
+			log.Errorf("do notify for mobile %s error: %v", account.Mobile, err)
 			continue
 		}
 
-		log.DefaultLogger().Infof("notify user %s succeed", account.Nickname)
+		log.Infof("notify user %s succeed", account.Nickname)
 		count++
 	}
 

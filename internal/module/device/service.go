@@ -5,7 +5,6 @@ import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
 	service2 "aed-api-server/internal/interfaces/service"
-	"aed-api-server/internal/module/user"
 	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/domain/emitter"
@@ -17,7 +16,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-xorm/xorm"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
+	"io"
+	"sort"
 	"sync"
 	"time"
 
@@ -25,18 +26,16 @@ import (
 	om "github.com/wk8/go-ordered-map"
 )
 
-func init() {
-	interfaces.S.Device = NewService()
-}
-
 type service struct {
-	storage Storage
-	user    user.Service
-	clockIn service2.ClockInService
+	storage  Storage
+	importer IDeviceImporter
+
+	User    service2.UserServiceOld `inject:"-"`
+	ClockIn service2.ClockInService `inject:"-"`
 }
 
 func NewService() service2.DeviceService {
-	return service{storage: NewStorage(), clockIn: interfaces.S.ClockIn, user: user.NewService(nil)}
+	return &service{storage: NewStorage(), importer: NewExcelDeviceImporter()}
 }
 
 func (s service) ListDevicesByIDs(from location.Coordinate, deviceIds []string) ([]*entities.Device, error) {
@@ -97,11 +96,13 @@ func (s service) ListDevices(from location.Coordinate, distance float64, p page.
 	if err != nil {
 		return nil, err
 	}
-
 	group := sync.WaitGroup{}
 	group.Add(1)
 	go func() {
 		computedDistance(from, devices)
+		sort.SliceStable(devices, func(i, j int) bool {
+			return devices[i].Distance < devices[j].Distance
+		})
 		group.Done()
 	}()
 	err = s.assembleDevices(devices)
@@ -242,7 +243,7 @@ func (s service) addPointDeviceGuided(deviceId string, userId int64, pointRst *[
 		return err
 	}
 
-	if times <= pkg.UserPointsMaxTimesDeviceGuideMaxTimes {
+	if times < pkg.UserPointsMaxTimesDeviceGuideMaxTimes {
 		event, err := interfaces.S.PointsScheduler.DealPointsEvent(&events.PointsEvent{
 			PointsEventType: entities.PointsEventTypeDeviceGuide,
 			UserId:          userId,
@@ -316,7 +317,6 @@ func (s service) parseDeviceInspectors(d *entities.Device) error {
 	d.Inspector = users
 	return nil
 }
-
 
 func (s service) InfoDevice(lnt, lat float64, udid string) (*entities.Device, error) {
 	defer utils.TimeStat("InfoDevice")()
@@ -403,7 +403,7 @@ func (s service) GetDeviceGuideInfo(deviceId string) (res entities.DeviceGuideLi
 	}
 	info := make([]entities.DeviceGuideListItem, 0)
 
-	users, err := s.user.ListUserByIDs(userIds)
+	users, err := s.User.ListUserByIDs(userIds)
 	if err != nil {
 		return
 	}
@@ -459,7 +459,7 @@ func (s service) GetGuideInfoById(uid string) (entities.DeviceGuideListItem, err
 	var listItem entities.DeviceGuideListItem
 
 	for pair := mInfos.Oldest(); pair != nil; pair = pair.Next() {
-		u := new(user.User)
+		u := new(entities.User)
 		infos := pair.Value.([]DeviceGuide)
 
 		u.ID = infos[0].AccountId
@@ -551,4 +551,24 @@ func (s service) UpdateDeviceOpenIn(deviceId string, openIn entities.TimeRange) 
 	d.OpenIn = openIn
 	_, err = db.Table("device").ID(d.Id).Update(d)
 	return err
+}
+
+func (s service) ImportDevices(reader io.Reader) error {
+	devices, err := s.importer.ImportDevices(reader)
+	if err != nil {
+		return err
+	}
+
+	return db.Transaction(func(session *xorm.Session) error {
+		_, err := session.Table("device").Insert(devices)
+		if err != nil {
+			return err
+		}
+
+		return tencent.CreateDevice(devices)
+	})
+}
+func (s service) SyncDevices() error {
+	//TODO implements
+	return nil
 }

@@ -10,13 +10,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
-func Init() {
-	interfaces.S.Stat = &service{}
-}
-
 type service struct{}
+
+func NewService() *service {
+	return &service{}
+}
 
 func (*service) DoKipStat() (*entities.KpiStatItem, error) {
 	arrRst, err := utils.PromiseAll(func() (interface{}, error) {
@@ -31,11 +32,15 @@ func (*service) DoKipStat() (*entities.KpiStatItem, error) {
 		return getUserNextDayUseRatio()
 	}, func() (interface{}, error) {
 		return getDeviceCount()
+	}, func() (interface{}, error) {
+		return interfaces.S.User.StatUser()
 	})
 
 	if err != nil {
 		return nil, err
 	}
+
+	userStat := arrRst[6].(entities.UserStat)
 
 	return &entities.KpiStatItem{
 		UserCount:            arrRst[0].(int) + arrRst[1].(int),
@@ -45,6 +50,8 @@ func (*service) DoKipStat() (*entities.KpiStatItem, error) {
 		DailyUserCount:       arrRst[3].(int),
 		UserNextDayUseRatio:  arrRst[4].(float64),
 		DeviceCount:          arrRst[5].(int),
+		RegUserCount:         userStat.TotalCount,
+		MobileUserCount:      userStat.MobileCount,
 	}, nil
 }
 
@@ -176,4 +183,116 @@ func getWechatToken() (string, error) {
 		return "", errors.New(rst["errmsg"].(string))
 	}
 	return rst["access_token"].(string), nil
+}
+
+func (*service) StatPointsTop() (*entities.UserPointsTop, error) {
+	ranks, err := getTopN(10)
+	if err != nil {
+		return nil, err
+	}
+
+	text := getTopNMarkdownText(ranks)
+
+	return &entities.UserPointsTop{
+		List: ranks,
+		Text: text,
+	}, nil
+}
+
+func getTopN(topN int) ([]*entities.UserPointsRank, error) {
+	ranks := make([]*entities.UserPointsRank, 0)
+	err := db.SQL(`
+		select
+			user_id,
+			sum(points) as points_amount,
+			count(points) as points_count
+		from point_flow
+		WHERE
+			created_at >= TIMESTAMPADD(day,-1,CURRENT_DATE)
+			and created_at < CURRENT_DATE
+			and status = 1
+			and points > 0
+		group by user_id
+		order by points_amount desc, points_count desc
+		limit ?
+	`, topN).Find(&ranks)
+	if err != nil {
+		return nil, err
+	}
+	return ranks, nil
+}
+
+func getTopNMarkdownText(ranks []*entities.UserPointsRank) string {
+	var title = "### 昨日积分排行\n"
+	if len(ranks) == 0 {
+		return title
+	}
+
+	userIds := make([]int64, 0)
+	for i := range ranks {
+		userIds = append(userIds, ranks[i].UserId)
+	}
+	ds, err := interfaces.S.User.GetListUserByIDs(userIds)
+	if err != nil {
+		return title
+	}
+
+	m := make(map[int64]*entities.SimpleUser)
+	for i := range ds {
+		user := ds[i]
+		m[user.ID] = user
+	}
+
+	userRankStrList := make([]string, 0)
+	for i := range ranks {
+		rank := ranks[i]
+		user, ok := m[rank.UserId]
+		if !ok {
+			user = &entities.SimpleUser{
+				ID:       rank.UserId,
+				Nickname: "未知用户",
+			}
+		}
+		userRankStrList = append(userRankStrList, fmt.Sprintf("#### %d). %d(%d次，%s=%d)  \n",
+			i+1, rank.PointsAmount, rank.PointsCount, user.Nickname, user.ID),
+			userPointsDis(rank.UserId),
+			"\n",
+		)
+	}
+
+	return title + strings.Join(userRankStrList, "")
+}
+
+func userPointsDis(userId int64) string {
+	type Rst struct {
+		Name   string
+		Points int
+		Count  int
+	}
+
+	list := make([]*Rst, 0)
+	err := db.SQL(`
+		select
+			b.name,
+			count(1) as count,
+			a.points
+		from point_flow as a
+		left join point_event_define as b on b.points_event_type = a.points_event_type
+		where 
+			a.user_id = ?
+			and a.points > 0
+			and a.created_at > TIMESTAMPADD(day,-1,CURRENT_DATE)
+			and a.created_at < CURRENT_DATE
+		group by a.points_event_type
+	`, userId).Find(&list)
+	if err != nil {
+		return ""
+	}
+	textList := make([]string, 0)
+	for i := range list {
+		r := list[i]
+		textList = append(textList, fmt.Sprintf("- %s(%d分,%d次)\n", r.Name, r.Points, r.Count))
+	}
+
+	return strings.Join(textList, "")
 }

@@ -4,12 +4,11 @@ import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/module/device"
-	"aed-api-server/internal/module/user"
 	"aed-api-server/internal/pkg/base"
 	"aed-api-server/internal/pkg/location"
 	page "aed-api-server/internal/pkg/query"
 	"aed-api-server/internal/pkg/tencent"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 	"sort"
 )
 
@@ -23,7 +22,7 @@ func NewRangedUserFinder() UserFinder {
 	}
 }
 
-func (u rangedUserFinder) FindUser(position location.Coordinate) ([]*user.User, error) {
+func (u rangedUserFinder) FindUser(position location.Coordinate) ([]*entities.User, error) {
 	userRange := int64(5000)
 	devices, err := u.deviceService.ListDevices(position, float64(userRange), page.Query{})
 	if err != nil {
@@ -43,18 +42,18 @@ func (u rangedUserFinder) FindUser(position location.Coordinate) ([]*user.User, 
 		return nil, err
 	}
 
-	log.DefaultLogger().Infof("notify range %dm users", userRange)
+	log.Infof("notify range %dm users", userRange)
 
 	if len(userIDs) == 0 {
 		return nil, nil
 	}
 
-	userMap, err := userService.ListUserByIDs(userIDs)
+	userMap, err := userService().ListUserByIDs(userIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	var userArr []*user.User
+	var userArr []*entities.User
 	for _, v := range userMap {
 		userArr = append(userArr, v)
 	}
@@ -63,7 +62,7 @@ func (u rangedUserFinder) FindUser(position location.Coordinate) ([]*user.User, 
 }
 
 func FindRangeUsers(current location.Coordinate, distance int64) ([]int64, error) {
-	accountPositions, err := userService.ListAllPositions()
+	accountPositions, err := userService().ListAllPositions()
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +102,7 @@ func (u rangedUserFinder) FindNearestDistance(current location.Coordinate) (int6
 	}
 
 	if len(devices) == 0 {
-		log.DefaultLogger().Warnf("no device found in 10000m range")
+		log.Warnf("no device found in 10000m range")
 		return 10000, nil
 	}
 

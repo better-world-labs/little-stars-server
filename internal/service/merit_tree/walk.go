@@ -9,6 +9,7 @@ import (
 	"aed-api-server/internal/pkg/crypto"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/response"
+	"aed-api-server/internal/pkg/utils"
 	"github.com/go-xorm/xorm"
 	"time"
 )
@@ -22,9 +23,12 @@ var (
 
 // TODO 调整代码结构，把 WechatClient 注册到 ServiceKeeper
 func InitWalk(config *config.AppConfig) {
-	interfaces.S.Walk = &walk{}
 	wechat = user.NewWechatClient(&config.Wechat)
 	crypt = crypto.NewWXUserDataCrypt(config.Wechat.AppID)
+}
+
+func NewWalkService() *walk {
+	return &walk{}
 }
 
 type WalkConvert struct {
@@ -107,6 +111,10 @@ func (*walk) GetWalkConvertInfo(userId int64, req *service.WalkConvertInfoReq) (
 	if unConvertWalk < 0 {
 		unConvertWalk = 0
 	}
+
+	utils.Go(func() {
+		interfaces.S.User.RecordUserEvent(userId, entities.UserEventTypeGetWalkStep, todayWalk)
+	})
 
 	return &service.WalkConvertInfo{
 		TodayWalk:       todayWalk,

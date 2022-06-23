@@ -92,3 +92,29 @@ func Test_genJob(t *testing.T) {
 
 	assert.NotNil(t, job)
 }
+
+func Test_buildKeyHash(t *testing.T) {
+	type args struct {
+		userId int64
+		link   string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "x",
+			args: args{
+				userId: 10,
+				link:   "https://www.bing.com/search?q=nginx+lua&qs=n&form=QBRE&sp=-1&pq=nginx+lu&sc=8-8&sk=&cvid=CB5BB7C596414D4D88AC6A2F8352A216",
+			},
+			want: "3f9d63843195e38afe89a1066141cf43",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, buildKeyHash(tt.args.userId, tt.args.link), "buildKeyHash(%v, %v)", tt.args.userId, tt.args.link)
+		})
+	}
+}

@@ -14,7 +14,7 @@ type Query struct {
 const DefaultPageSize = "20"
 const DefaultPage = "0"
 
-func (q *Query) getLimit() (int, int) {
+func (q *Query) GetLimit() (int, int) {
 	return (q.Page - 1) * q.Size, q.Size
 }
 

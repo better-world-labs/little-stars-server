@@ -1,12 +1,19 @@
 package service
 
-import "aed-api-server/internal/interfaces/entities"
+import (
+	"aed-api-server/internal/interfaces/entities"
+	"aed-api-server/internal/interfaces/events"
+)
 
 // UserService 用户服务
 type UserService interface {
 
 	// GetListUserByIDs 读取多个账号信息
 	GetListUserByIDs(ids []int64) ([]*entities.SimpleUser, error)
+
+	ListAllUsers() ([]*entities.UserDTO, error)
+
+	StatUser() (entities.UserStat, error)
 
 	// GetUserById 根据ID读取某个用户
 	GetUserById(id int64) (*entities.SimpleUser, bool, error)
@@ -17,5 +24,17 @@ type UserService interface {
 	// GetUserByPhone 根据手机号读取帐号
 	GetUserByPhone(phone string) (*entities.SimpleUser, bool, error)
 
-	RecordUserEvent(userId int64, eventType string)
+	RecordUserEvent(userId int64, eventType entities.UserEventType, eventParams ...interface{})
+
+	GetLastUserEventByType(userId int64, eventType entities.UserEventType) (*events.UserEvent, error)
+
+	BatchGetLastUserEventByType(userIds []int64, eventType entities.UserEventType) (map[int64]*events.UserEvent, error)
+
+	GetUserOpenIdById(userId int64) (string, error)
+
+	// Traverse 遍历所有用户
+	Traverse(f func(dto entities.UserDTO))
+
+	// TraverseSubscribeMessageTicketUser 遍历有发订阅消息权限的用户
+	TraverseSubscribeMessageTicketUser(key entities.SubscribeMessageKey, f func(dto []*entities.UserDTO))
 }

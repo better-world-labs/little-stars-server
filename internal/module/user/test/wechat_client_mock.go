@@ -15,6 +15,19 @@ func NewMockedWechatClient() user.WechatClient {
 	}
 }
 
+func (m mockWechatClient) Decrypt(encryptedData, iv, sessionKey string, dst interface{}) error {
+	_, err := m.crypto.Decrypt(encryptedData, iv, sessionKey, dst)
+	return err
+}
+
+func (m mockWechatClient) GetMinaToken() (string, error) {
+	panic("implement me")
+}
+
+func (m mockWechatClient) SendSubscribeMsg(openId string, templateId string, params interface{}) {
+	panic("implement me")
+}
+
 func (m mockWechatClient) CodeToSession(code string) (*user.Code2SessionRes, error) {
 	return &user.Code2SessionRes{
 		SessionKey: "SJV2hpDNbb2O6t3LrS7Jkg==",

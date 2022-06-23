@@ -11,10 +11,6 @@ import (
 	"time"
 )
 
-func InitEarly() {
-	interfaces.S.Early = NewEarlyService()
-}
-
 type EarlyService struct{}
 
 func NewEarlyService() service.EarlyService {

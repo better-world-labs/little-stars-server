@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	c, err := config.LoadConfig("../../../config-local.yaml")
+	c, err := config.LoadConfig("../../..")
 	if err != nil {
 		panic(err)
 	}

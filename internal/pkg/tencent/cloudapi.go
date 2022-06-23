@@ -1,31 +1,33 @@
 package tencent
 
 import (
+	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg/location"
 	page "aed-api-server/internal/pkg/query"
+	"aed-api-server/internal/pkg/utils"
 	"encoding/json"
+	"errors"
 	"fmt"
-
 	"github.com/google/uuid"
+	"strconv"
 )
 
 // 腾讯地点云 https://lbs.qq.com/service/placeCloud/placeCloudGuide/cloudOverview
 
 type Config struct {
-	APIKey    string `yaml:"apikey"`
-	SecretKey string `yaml:"apiksecret"`
-	TblDevice string `yaml:"tbl_device"` // aed设备云端表
+	APIKey    string `properties:"apikey"`
+	SecretKey string `properties:"apiksecret"`
+	TblDevice string `properties:"tbl_device"` // aed设备云端表
 }
+
+const (
+	MaxCreateOneTime = 20
+)
 
 var config *Config
 
 func Init(c *Config) {
 	config = c
-}
-
-func QueryDeviceTblStruct(pageNow, pageSize int) {
-	url := fmt.Sprintf("https://apis.map.qq.com/place_cloud/data/list?table_id=%v&orderby=id&page_index=1&page_size=20&key=%v", config.TblDevice, config.APIKey)
-	fmt.Println(Get(url))
 }
 
 func ListRangeDeviceIDs(center location.Coordinate, radius float64, query page.Query) ([]string, error) {
@@ -80,6 +82,17 @@ func ListRangeDeviceIDs(center location.Coordinate, radius float64, query page.Q
 		deviceIds = append(deviceIds, d.UdID)
 	}
 
+	// 遍历分页
+	if resp.Result.Count > int64(query.Size*query.Page) {
+		query.Page++
+		ds, err := ListRangeDeviceIDs(center, radius, query)
+		if err != nil {
+			return nil, err
+		}
+
+		deviceIds = append(deviceIds, ds...)
+	}
+
 	return deviceIds, nil
 }
 
@@ -121,13 +134,77 @@ func SearchMapDevice(lng, lat, distance float64, page, size int) ([]Device, erro
 	return resp.Result.Data, nil
 }
 
+func TransTblDataBatch(devices []*entities.Device) []*TblData {
+	var t []*TblData
+
+	for _, d := range devices {
+		t = append(t, TransTblData(d))
+	}
+
+	return t
+}
+
+func TransTblData(device *entities.Device) *TblData {
+	return &TblData{
+		UdID:     device.Id,
+		Title:    device.Title,
+		Location: Location{Lng: device.Longitude, Lat: device.Latitude},
+	}
+}
+
+func CreateDevice(devices []*entities.Device) error {
+	if len(devices) > MaxCreateOneTime {
+		err := CreateDevice(devices[:MaxCreateOneTime])
+		if err != nil {
+			return err
+		}
+
+		err = CreateDevice(devices[MaxCreateOneTime:])
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	tbl := TransTblDataBatch(devices)
+	jsonData, err := json.Marshal(&tbl)
+	if err != nil {
+		return err
+	}
+
+	params := map[string]string{
+		"key":      config.APIKey,
+		"table_id": config.TblDevice,
+		"data":     string(jsonData),
+	}
+
+	sign := getSign("/place_cloud/data/create", params)
+	url := fmt.Sprintf("%v?sig=%v", "https://apis.map.qq.com/place_cloud/data/create", sign)
+
+	var resp CreateResp
+	err = utils.Post(url, map[string]interface{}{
+		"key":      config.APIKey,
+		"table_id": config.TblDevice,
+		"data":     tbl,
+	}, &resp)
+	if err != nil {
+		return err
+	}
+
+	if resp.Status != 0 {
+		return errors.New(resp.Message)
+	}
+
+	return nil
+}
+
 func AddDevice(lng, lat float64, title string) (string, error) {
 	data := make([]*TblData, 0)
 	device := new(TblData)
 	device.UdID = uuid.New().String()
 	device.Title = title
 	device.Location = Location{Lng: lng, Lat: lat}
-	device.Polygon = ""
 	data = append(data, device)
 	j, err := json.Marshal(data)
 	if err != nil {
@@ -203,8 +280,8 @@ func ListDevice(pageIndex, pageSize int) ([]Device, error) {
 	params := make(map[string]string)
 	params["key"] = config.APIKey
 	params["table_id"] = config.TblDevice
-	params["page_index"] = fmt.Sprintf("%v", pageIndex)
-	params["page_size"] = fmt.Sprintf("%v", pageSize)
+	params["page_index"] = strconv.Itoa(pageIndex)
+	params["page_size"] = strconv.Itoa(pageSize)
 
 	var dataParams string
 	for k, _ := range params {

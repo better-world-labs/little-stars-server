@@ -3,7 +3,6 @@ package merit_tree
 import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
-	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/utils"
 	"aed-api-server/internal/service/merit_tree/task_bubble"
@@ -12,11 +11,11 @@ import (
 
 type meritTree struct{}
 
-func InitMeritTree() {
-	interfaces.S.MeritTree = &meritTree{}
+func NewMeritTreeService() *meritTree {
+	return &meritTree{}
 }
 
-func getBubbles(userId int64) ([]*service.Bubble, error) {
+func getBubbles(userId int64) ([]*entities.Bubble, error) {
 	results, err := utils.PromiseAll(func() (interface{}, error) {
 		return interfaces.S.Points.GetUnReceivePoints(userId)
 	}, func() (interface{}, error) {
@@ -29,13 +28,13 @@ func getBubbles(userId int64) ([]*service.Bubble, error) {
 		return nil, err
 	}
 
-	bubbles := results[1].([]*service.Bubble)
+	bubbles := results[1].([]*entities.Bubble)
 
 	//待办任务泡泡
 	if results[2].(bool) {
-		bubbles = append(bubbles, &service.Bubble{
+		bubbles = append(bubbles, &entities.Bubble{
 			Id:     task_bubble.ClockInAEDTask,
-			Type:   service.BubbleTodoTask,
+			Type:   entities.BubbleTodoTask,
 			Name:   task_bubble.ClockInAEDTaskName,
 			Points: 200,
 		})
@@ -45,9 +44,9 @@ func getBubbles(userId int64) ([]*service.Bubble, error) {
 	points := results[0].([]*entities.UserPointsFlow)
 	for i := range points {
 		flow := points[i]
-		bubbles = append(bubbles, &service.Bubble{
+		bubbles = append(bubbles, &entities.Bubble{
 			Id:        flow.Id,
-			Type:      service.BubblePointsNeedAccept,
+			Type:      entities.BubblePointsNeedAccept,
 			Name:      flow.Name,
 			Points:    flow.Points,
 			ExpiredAt: flow.ExpiredAt,
@@ -57,9 +56,9 @@ func getBubbles(userId int64) ([]*service.Bubble, error) {
 	return bubbles, nil
 }
 
-func (s *meritTree) GetTreeInfo(userId int64) (*service.MeritTreeInfo, error) {
+func (s *meritTree) GetTreeInfo(userId int64) (*entities.MeritTreeInfo, error) {
 	utils.Go(func() {
-		interfaces.S.User.RecordUserEvent(userId, "get-tree-info")
+		interfaces.S.User.RecordUserEvent(userId, entities.UserEventTypeGetTreeInfo)
 	})
 
 	rsts, err := utils.PromiseAll(func() (interface{}, error) {
@@ -74,15 +73,15 @@ func (s *meritTree) GetTreeInfo(userId int64) (*service.MeritTreeInfo, error) {
 		return nil, err
 	}
 
-	bubbles := rsts[0].([]*service.Bubble)
+	bubbles := rsts[0].([]*entities.Bubble)
 	incomePoints := rsts[1].(int)
 	totalPoints := rsts[2].(int)
 
 	if bubbles == nil {
-		bubbles = make([]*service.Bubble, 0)
+		bubbles = make([]*entities.Bubble, 0)
 	}
 
-	info := service.MeritTreeInfo{
+	info := entities.MeritTreeInfo{
 		TotalPoints:             totalPoints,
 		TreeLevel:               getTreeLevel(incomePoints),
 		FriendsAddPointsPercent: getFriendsAddPointsPercent(userId),
@@ -172,7 +171,7 @@ func (s *meritTree) ReadTreeBubblesCount(userId int64) error {
 	return nil
 }
 
-func (s *meritTree) ReceiveBubblePoints(userId int64, bubbleId int64) (*service.ReceiveBubblePointsRst, error) {
+func (s *meritTree) ReceiveBubblePoints(userId int64, bubbleId int64) (*entities.ReceiveBubblePointsRst, error) {
 	err := interfaces.S.Points.ReceivePoints(userId, bubbleId)
 	if err != nil {
 		return nil, err
@@ -182,7 +181,7 @@ func (s *meritTree) ReceiveBubblePoints(userId int64, bubbleId int64) (*service.
 		return nil, err
 	}
 
-	return &service.ReceiveBubblePointsRst{
+	return &entities.ReceiveBubblePointsRst{
 		TotalPoints: points,
 		TreeLevel:   getTreeLevel(points),
 	}, nil

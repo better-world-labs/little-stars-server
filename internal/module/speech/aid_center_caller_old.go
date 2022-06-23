@@ -3,7 +3,7 @@ package speech
 import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg/sms"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 const targetAidCallPhone = "18816570787"
@@ -28,9 +28,9 @@ func isPublisherInBlackList(mobile string) bool {
 }
 
 func (c manual120CallerOld) Call(helpInfo *entities.HelpInfo) error {
-	log.DefaultLogger().Infof("Call 120 for helpInfo %d", helpInfo.ID)
+	log.Infof("Call 120 for helpInfo %d", helpInfo.ID)
 
-	publisher, err := userService.GetUserByID(helpInfo.ID)
+	publisher, err := userService().GetUserByID(helpInfo.ID)
 	if err != nil {
 		return err
 	}
@@ -39,6 +39,6 @@ func (c manual120CallerOld) Call(helpInfo *entities.HelpInfo) error {
 		return sms.SendSms(targetAidCallPhone, "SMS_232178406", nil)
 	}
 
-	log.DefaultLogger().Infof("publisher %s in black list, skip", publisher.Nickname)
+	log.Infof("publisher %s in black list, skip", publisher.Nickname)
 	return nil
 }
