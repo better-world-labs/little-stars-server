@@ -28,6 +28,7 @@ const (
 type Service struct {
 }
 
+//go:inject-component
 func NewService() service2.DonationService {
 	return &Service{}
 }
@@ -56,7 +57,7 @@ func (s *Service) DeleteDonation(id int64) error {
 	return err
 }
 
-func (s *Service) ListDonatorsDonation(userId int64) ([]*entities.DonationWithUserDonated, error) {
+func (s *Service) ListDonorsDonation(userId int64) ([]*entities.DonationWithUserDonated, error) {
 	resulsts, err := utils.PromiseAll(func() (interface{}, error) {
 		return s.ListDonationByUserId(userId)
 	}, func() (interface{}, error) {
@@ -131,14 +132,32 @@ func (s *Service) ListUserPointsForDonations(userId int64) (map[int64]int, error
 	return donationPointsMap, err
 }
 
-func (s *Service) ListDonation(p page.Query) ([]*entities.Donation, error) {
+func (s *Service) ListDonation(p page.Query, userId int64) ([]*entities.Donation, error) {
 	var donations []*entities.Donation
-	t := db.Table(TableNameDonation)
-	if p.Page > 0 {
-		t.Limit(p.Size, (p.Page-1)*p.Size)
-	}
+	var session *xorm.Session
+	if userId > 0 {
+		limitStr := ""
+		if p.Size > 0 {
+			limitStr = fmt.Sprintf("limit %v,%v", (p.Page-1)*p.Size, p.Size)
+		}
 
-	err := t.Asc("sort").Find(&donations)
+		session = db.SQL(fmt.Sprintf(`
+			select
+				a.*
+			from donation as a
+			left join user_position_heat as b
+				on b.hash_id = a.geo_hash_id
+				and b.user_id = ?
+			order by b.heat desc, a.actual_points/a.target_points desc
+			%s
+		`, limitStr), userId)
+	} else {
+		session = db.Table(TableNameDonation).Asc("sort")
+		if p.Page > 0 {
+			session.Limit(p.Size, (p.Page-1)*p.Size)
+		}
+	}
+	err := session.Find(&donations)
 	fixStatuses(donations)
 	return donations, err
 }
@@ -216,7 +235,7 @@ func (s *Service) GetDonationRecordCount(id int64) (int64, error) {
 }
 
 func (s *Service) Donate(record *entities.DonationRecord) (*entities.DonationRecord, error) {
-	err := db.Begin(func(session *xorm.Session) error {
+	err := db.Transaction(func(session *xorm.Session) error {
 		donation, exists, err := s.GetDonationByIdForUpdate(session, record.DonationId)
 		if err != nil {
 			return err

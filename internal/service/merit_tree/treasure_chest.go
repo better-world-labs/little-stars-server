@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+//go:inject-component
 func NewTreasureChestService() service.TreasureChestService {
 	return &treasureChestService{
 		p: &persistence{},

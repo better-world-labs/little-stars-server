@@ -57,12 +57,17 @@ var (
 
 // generic
 var (
+	ErrorNotFound            = &BusinessError{Code: 1404, Message: "not found"}
 	ErrorInsufficientBalance = &BusinessError{Code: 1100, Message: "积分余额不足"}
 	ErrorConcurrentOperation = &BusinessError{Code: 2222, Message: "重复操作"}
 )
 
+// clock_in
+var (
+	ErrorAlreadyClockIn = &BusinessError{6000, "今日已经打卡过了，明天再来吧"}
+)
+
 // other
 var (
-	ErrorInvalidDistance = &BusinessError{2000, "操作失败，您与目的地距离超过1km"}
-	ErrorLinkInvalid     = &BusinessError{4000, "链接无效或已经过期"}
+	ErrorTooFar = &BusinessError{2000, "操作失败，您与目的地距离过于远"}
 )

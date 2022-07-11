@@ -20,6 +20,7 @@ const (
 	courseUserTableName = "project_course_user"
 )
 
+//go:inject-component
 func NewCourseService() *CourseService {
 	return &CourseService{}
 }

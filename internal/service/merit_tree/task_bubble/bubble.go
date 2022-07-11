@@ -3,6 +3,7 @@ package task_bubble
 import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
+	"aed-api-server/internal/interfaces/facility"
 	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/domain/emitter"
@@ -110,7 +111,14 @@ func findBubblesByUserId(userId int64) (list []*TreeTaskBubble, err error) {
 	return list, nil
 }
 
-func InitEventHandler() {
+//go:inject-component
+func NewBubbleDefine() *BubbleDefine {
+	return &BubbleDefine{}
+}
+
+type BubbleDefine struct{}
+
+func (*BubbleDefine) Listen(on facility.OnEvent) {
 	defines := make([]service.MeritTreeTaskTaskBubbleDefine, 0)
 	defines = append(defines,
 		&DonationPoints{},
@@ -122,7 +130,7 @@ func InitEventHandler() {
 	for _, def := range defines {
 		fn := defGenFn(def)
 		for _, event := range def.GetTriggerEvents() {
-			emitter.On(event.(emitter.DomainEvent), fn)
+			on(event.(emitter.DomainEvent), fn)
 		}
 	}
 }
@@ -154,6 +162,7 @@ func defGenFn(def service.MeritTreeTaskTaskBubbleDefine) emitter.DomainEventHand
 
 type MeritTreeTaskTaskBubbleService struct{}
 
+//go:inject-component
 func NewMeritTreeTaskBubbleService() *MeritTreeTaskTaskBubbleService {
 	return &MeritTreeTaskTaskBubbleService{}
 }

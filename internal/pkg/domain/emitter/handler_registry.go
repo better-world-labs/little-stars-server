@@ -1,7 +1,7 @@
 package emitter
 
 import (
-	"log"
+	log "github.com/sirupsen/logrus"
 	"reflect"
 	"sync"
 )
@@ -24,7 +24,7 @@ func NewHandlerRegistry() *HandlerRegistry {
 
 func (k *HandlerRegistry) Register(key DomainEvent, handler DomainEventHandler) {
 	eventType := GetStructType(key)
-	log.Printf("[emitter.HandlerRegistry]: register handler %p for EventType %s", handler, eventType)
+	log.Infof("Register for EventType %s", eventType)
 
 	k.rwMutex.Lock()
 	defer k.rwMutex.Unlock()
@@ -65,7 +65,7 @@ func (k *HandlerRegistry) Get(key string) (*HandlerKeeper, bool) {
 
 func (k *HandlerRegistry) Delete(evt DomainEvent, handler DomainEventHandler) {
 	eventType := GetStructType(evt)
-	log.Printf("[emitter.HandlerRegistry]: delete handler %p for EventType %s", handler, eventType)
+	log.Infof("Delete handler for EventType %s", eventType)
 
 	k.rwMutex.Lock()
 	defer k.rwMutex.Unlock()

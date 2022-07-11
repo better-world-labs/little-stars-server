@@ -2,33 +2,27 @@ package server
 
 import (
 	"aed-api-server/internal/interfaces"
-	"aed-api-server/internal/module/achievement"
-	"aed-api-server/internal/module/friends"
-	"aed-api-server/internal/module/img"
-	"aed-api-server/internal/module/speech"
-	"aed-api-server/internal/module/user"
 	"aed-api-server/internal/pkg/asserts"
 	"aed-api-server/internal/pkg/cache"
 	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/db"
 	config2 "aed-api-server/internal/pkg/domain/config"
 	"aed-api-server/internal/pkg/domain/emitter"
-	"aed-api-server/internal/pkg/environment"
 	"aed-api-server/internal/pkg/sms"
-	"aed-api-server/internal/pkg/star"
 	"aed-api-server/internal/pkg/tencent"
 	"aed-api-server/internal/pkg/utils"
-	"aed-api-server/internal/service/merit_tree"
-	"aed-api-server/internal/service/subscribe_msg"
+	"aed-api-server/internal/service/img"
+	"aed-api-server/internal/service/medal"
+	"aed-api-server/internal/service/speech"
+	"aed-api-server/internal/service/user"
 	"context"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/magiconair/properties"
 	"gitlab.openviewtech.com/openview-pub/gopkg/inject"
+	"gitlab.openviewtech.com/openview-pub/gopkg/log"
 	"net/http"
 	"time"
-
-	"github.com/gin-gonic/gin"
-	"gitlab.openviewtech.com/openview-pub/gopkg/log"
 )
 
 var (
@@ -67,33 +61,31 @@ func Initialize(loader func(conf *config.AppConfig, component *inject.Component)
 	component = &inject.Component{}
 	initLog(conf)
 	cache.InitPool(conf.Redis)
-	initEmitter(conf.Domain)
+
 	interfaces.InitConfig(conf) //TODO 清理
-	prefix := environment.GetDomainPrefix(conf.Server.Env)
-	speech.SetAidCaller(speech.NewAidCaller(prefix, speech.NewPathGenerator(speech.NewTokenService())))
-	speech.SetUserFinder(speech.NewUserFinder(conf.Notifier.UserFinder))
+	speech.Init()
 	user.InitJwt(conf.JwtConfig.Secret, conf.JwtConfig.ExpiresIn)
 	db.InitEngine(conf.Database)
 	tencent.Init(&conf.MapConfig)
-	friends.Init()
-	merit_tree.InitWalk(conf)
 	initAsserts()
 	initImg()
-	achievement.Init()
+	medal.Init()
 	sms.InitSmsClient(conf.SmsClient)
-	star.Init(conf.MiniProgramQrcode)
+
 	component.Conf(p)
 	loader(conf, component)
 	component.Install()
+
+	initEmitter(conf.Domain)
+	//initScheduler 依赖了component，须放在component.Install()之后
+	initScheduler()
 	return component
 }
 
 // Start 启动阶段
 func Start() {
 	initRouter(conf)
-	subscribe_msg.InitScheduler()
 	emitter.Start()
-	interfaces.S.Cron.Start()
 	startHttpServer()
 }
 
@@ -102,8 +94,6 @@ func Stop() {
 	log.DefaultLogger().Info("shutting down server")
 	stopHttpServer()
 	emitter.Stop()
-	//停止定时器
-	interfaces.S.Cron.Stop()
 }
 
 func startHttpServer() {
@@ -114,7 +104,7 @@ func startHttpServer() {
 
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Info("http server error: %v", err)
+			log.Infof("http server error: %v", err)
 			panic(err)
 		}
 	}()

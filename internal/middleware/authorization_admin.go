@@ -1,11 +1,11 @@
 package middleware
 
 import (
-	"aed-api-server/internal/module/user"
 	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/response"
+	"aed-api-server/internal/service/user"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"strings"

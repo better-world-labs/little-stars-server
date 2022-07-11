@@ -11,6 +11,7 @@ import (
 
 type meritTree struct{}
 
+//go:inject-component
 func NewMeritTreeService() *meritTree {
 	return &meritTree{}
 }

@@ -68,7 +68,7 @@ func TestEmitter(t *testing.T) {
 
 	//发送事件
 	go func() {
-		for i := 0; i < 10000; i++ {
+		for i := 0; i < 1000; i++ {
 			err := emitter.Emit(&tick)
 			require.Nil(t, err)
 		}
@@ -89,9 +89,9 @@ func TestEmitter(t *testing.T) {
 	fmt.Printf("executeFlag2 = %d\n", executeFlag2)
 	fmt.Printf("executeFlag3 = %d\n", executeFlag3)
 
-	assert.Equal(t, int32(10000), executeFlag1.Load())
-	assert.Equal(t, int32(10000), executeFlag2.Load())
-	assert.Equal(t, int32(10000), executeFlag3.Load())
+	assert.Equal(t, int32(1000), executeFlag1.Load())
+	assert.Equal(t, int32(1000), executeFlag2.Load())
+	assert.Equal(t, int32(1000), executeFlag3.Load())
 
 	emitter.Off(&TimeTick{}, evtHandler)
 

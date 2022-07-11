@@ -30,7 +30,7 @@ func TestHandlerRegistry(t *testing.T) {
 	//fmt.Printf("handleTimeTrick5 = %p", handlerTimeTick5)
 	//fmt.Printf("handleTimeTrick6 = %p", handlerTimeTick6)
 	i := 0
-	for ; i < 100000; i++ {
+	for ; i < 1000; i++ {
 		//fmt.Printf("----------------------------start----------------------------------------------\n")
 		registry := emitter.NewHandlerRegistry()
 		g := sync.WaitGroup{}
@@ -115,7 +115,7 @@ func TestHandlerRegistry(t *testing.T) {
 		require.Equal(t, 2, len(h.Handlers()))
 	}
 
-	require.Equal(t, 100000, i)
+	require.Equal(t, 1000, i)
 }
 
 func handlerEvent12(event emitter.DomainEvent) error {

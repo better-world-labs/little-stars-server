@@ -10,19 +10,27 @@ import (
 	"aed-api-server/internal/pkg/domain/emitter"
 	"aed-api-server/internal/pkg/global"
 	"aed-api-server/internal/pkg/location"
+	"aed-api-server/internal/pkg/response"
 	"aed-api-server/internal/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
 
 const clockInTableName = "device_clock_in"
+const (
+	ClockInRange = 1000
+)
 
+//go:inject-component
 func NewService() *Service {
 	return &Service{}
 }
 
 type Service struct {
-	service.ClockInService
+	User   service.UserServiceOld `inject:"-"`
+	Device service.DeviceService  `inject:"-"`
+
+	ClockInRangeCheck bool `conf:"clock-in-range-check"`
 }
 
 func (Service) GetDeviceClockInUserIds(deviceId string) ([]int64, error) {
@@ -41,6 +49,16 @@ func (Service) GetDeviceClockInUserIds(deviceId string) ([]int64, error) {
 	}
 
 	return userIds, err
+}
+
+func (Service) DoesUserAlreadyClockInToday(deviceId string) (bool, error) {
+	var clockIns []*entities.ClockInBaseInfo
+
+	err := db.Table(clockInTableName).
+		Where("device_id = ? and created_at > date(now())", deviceId).
+		Find(&clockIns)
+
+	return len(clockIns) > 0, err
 }
 
 func (Service) GetDeviceClockInLatest2(deviceId string) ([]*entities.ClockIn, error) {
@@ -74,25 +92,57 @@ func (Service) GetDeviceClockInLatest2(deviceId string) ([]*entities.ClockIn, er
 }
 
 func (Service) GetDeviceClockInStat() (*entities.DeviceClockInStat, error) {
-	total, err := db.Table("device").Count()
+	var stat entities.DeviceClockInStat
+	_, err := db.SQL(`
+		select
+			a.total,
+			a.total - a.done as todo,
+			a.clock_in_count,
+			a.user_count
+		from (
+		select
+			(select count(*) from device) as total,
+			count(*) as clock_in_count,
+			count(distinct device_id) as done,
+			count(distinct created_by) as user_count
+		from device_clock_in
+		) as a
+	`).Get(&stat)
 	if err != nil {
 		return nil, err
 	}
-
-	clockInCount, err := db.Table(clockInTableName).Select("count(distinct device_id)").Count()
-	if err != nil {
-		return nil, err
-	}
-
-	return &entities.DeviceClockInStat{
-		Total: total,
-		Todo:  total - clockInCount,
-	}, nil
+	return &stat, nil
 }
 
 func (s Service) DoDeviceClockIn(info *entities.ClockInBaseInfo, userId int64) (rst []*entities.DealPointsEventRst, err error) {
 	info.CreatedBy = userId
 	info.CreatedAt = time.Now()
+
+	clocked, err := s.DoesUserAlreadyClockInToday(info.DeviceId)
+	if err != nil {
+		return nil, err
+	}
+
+	if clocked {
+		return nil, response.ErrorAlreadyClockIn
+	}
+
+	position, err := s.User.GetPositionByUserID(userId)
+	if err != nil {
+		return
+	}
+
+	device, err := s.Device.InfoDevice(0, 0, info.DeviceId)
+	if err != nil {
+		return
+	}
+
+	deviceLocation := location.Coordinate{Longitude: device.Longitude, Latitude: device.Latitude}
+	if s.ClockInRangeCheck && deviceLocation.DistanceOf(*position.Coordinate) > ClockInRange {
+		err = response.ErrorTooFar
+		return
+	}
+
 	_, err = db.Insert(clockInTableName, info)
 	if err != nil {
 		return

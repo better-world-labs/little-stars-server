@@ -24,13 +24,10 @@ type WxUserPhone struct {
 }
 
 type WXUserDataCrypt struct {
-	appID string
 }
 
-func NewWXUserDataCrypt(appID string) *WXUserDataCrypt {
-	return &WXUserDataCrypt{
-		appID: appID,
-	}
+func NewWXUserDataCrypt() *WXUserDataCrypt {
+	return &WXUserDataCrypt{}
 }
 
 // pkcs7Unpad returns slice of the original data without padding

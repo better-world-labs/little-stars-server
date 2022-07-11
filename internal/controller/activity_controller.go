@@ -3,7 +3,6 @@ package controller
 import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
-	activity2 "aed-api-server/internal/module/activity"
 	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/feedback"
 	"aed-api-server/internal/pkg/global"
@@ -19,6 +18,7 @@ import (
 type ActivityController struct {
 }
 
+//go:inject-component
 func NewActivityController() *ActivityController {
 	return &ActivityController{}
 }
@@ -47,12 +47,12 @@ func (con *ActivityController) ListActivities(c *gin.Context) (interface{}, erro
 	if err != nil {
 		return nil, response.NewIllegalArgumentError(err.Error())
 	}
-	res, err := activity2.GetService().ListLatestCategorySorted(query.AidId, query.Limit)
+	res, err := activity.GetService().ListLatestCategorySorted(query.AidId, query.Limit)
 	if err != nil {
 		return nil, err
 	}
 
-	last, err := activity2.GetService().GetLastUpdated(query.AidId)
+	last, err := activity.GetService().GetLastUpdated(query.AidId)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (con *ActivityController) CreateScene(c *gin.Context) (interface{}, error) 
 		return nil, response.NewIllegalArgumentError(err.Error())
 	}
 
-	eventRst, err := activity2.GetService().SaveActivitySceneReport(events.NewSceneReportEvent(dto.AidID, accountID, dto.Description, dto.Images))
+	eventRst, err := activity.GetService().SaveActivitySceneReport(events.NewSceneReportEvent(dto.AidID, accountID, dto.Description, dto.Images))
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (con *ActivityController) GetLatestActivity(c *gin.Context) (interface{}, e
 		return nil, response.NewIllegalArgumentError(err.Error())
 	}
 
-	res, err := activity2.GetService().ListLatestCategorySorted(query.AidId, 1)
+	res, err := activity.GetService().ListLatestCategorySorted(query.AidId, 1)
 	resolveActivityImages(res)
 	if len(res) == 0 {
 		return nil, nil
@@ -117,7 +117,7 @@ func (con *ActivityController) GetOneByID(c *gin.Context) (interface{}, error) {
 		return nil, response.NewIllegalArgumentError(err.Error())
 	}
 
-	res, err := activity2.GetService().GetOneByID(query.Id)
+	res, err := activity.GetService().GetOneByID(query.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -126,14 +126,17 @@ func (con *ActivityController) GetOneByID(c *gin.Context) (interface{}, error) {
 }
 
 func (con *ActivityController) GoingToDevice(c *gin.Context) (interface{}, error) {
+	type GoingToDevice struct {
+		AidId int64 `json:"aidId,omitempty,string" binding:"required"`
+	}
 	accountID := c.MustGet(pkg.AccountIDKey).(int64)
-	req := new(activity2.GoingToDevice)
+	req := new(GoingToDevice)
 	err := c.ShouldBindJSON(req)
 	if err != nil {
 		return nil, err
 	}
 
-	err = activity2.GetService().SaveActivityGoingToGetDevice(events.NewGoingToGetDeviceEvent(req.AidId, accountID))
+	err = activity.GetService().SaveActivityGoingToGetDevice(events.NewGoingToGetDeviceEvent(req.AidId, accountID))
 	if err != nil {
 		return nil, err
 	}
@@ -142,14 +145,17 @@ func (con *ActivityController) GoingToDevice(c *gin.Context) (interface{}, error
 }
 
 func (con *ActivityController) GetDevice(c *gin.Context) (interface{}, error) {
+	type BorrowDevice struct {
+		AidId int64 `json:"aidId,omitempty,string" binding:"required"`
+	}
 	accountID := c.MustGet(pkg.AccountIDKey).(int64)
-	req := new(activity2.BorrowDevice)
+	req := new(BorrowDevice)
 	err := c.ShouldBindJSON(req)
 	if err != nil {
 		return nil, err
 	}
 
-	pointEvt, err := activity2.GetService().SaveActivityDeviceGot(events.NewDeviceGotEvent(req.AidId, accountID))
+	pointEvt, err := activity.GetService().SaveActivityDeviceGot(events.NewDeviceGotEvent(req.AidId, accountID))
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +185,7 @@ func (con *ActivityController) GetManyByIDs(c *gin.Context) (interface{}, error)
 		param = append(param, i)
 	}
 
-	res, err := activity2.GetService().GetManyByIDs(param)
+	res, err := activity.GetService().GetManyByIDs(param)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +208,7 @@ func (con *ActivityController) GoingToLearning(c *gin.Context) (interface{}, err
 		return nil, response.NewIllegalArgumentError(err.Error())
 	}
 
-	err = activity2.GetService().Create(&entities.Activity{
+	err = activity.GetService().Create(&entities.Activity{
 		HelpInfoID: aid,
 		Class:      activity.ClassSkillLearning,
 		UserID:     &accountID,

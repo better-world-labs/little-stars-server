@@ -6,7 +6,6 @@ import (
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/service/point"
 	"aed-api-server/internal/service/user"
-	"aed-api-server/internal/service/user_config"
 	"gitlab.openviewtech.com/openview-pub/gopkg/log"
 	"testing"
 )
@@ -19,7 +18,7 @@ func Test_sendPointsExpiringMsg(t *testing.T) {
 	interfaces.InitConfig(c)
 	interfaces.S.User = user.NewService()
 	interfaces.S.Points = point.NewService()
-	interfaces.S.UserConfig = user_config.NewUserConfigService()
+	interfaces.S.UserConfig = user.NewUserConfigService()
 	db.InitEngine(c.Database)
 	log.Init(c.Log)
 

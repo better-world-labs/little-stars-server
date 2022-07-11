@@ -3,21 +3,43 @@ package point
 import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/events"
+	"aed-api-server/internal/interfaces/facility"
 	"aed-api-server/internal/pkg/domain/emitter"
-	log "github.com/sirupsen/logrus"
+	"errors"
+	"github.com/sirupsen/logrus"
 )
 
-func InitEventHandler() {
-	emitter.On(&events.PointsEvent{}, pointsEventHandler)
+var (
+	ErrorInvalidEventType = errors.New("event assert failed, invalid event type")
+)
+
+func (*service) Listen(on facility.OnEvent) {
+	on(&events.PointsEvent{}, handlePointsEvent)
+	on(&events.AddPoints{}, handleAddPoints)
 }
 
-func pointsEventHandler(evt emitter.DomainEvent) error {
-	log.Info("[point.EventHandler]", "handlePointEvent")
+func handlePointsEvent(evt emitter.DomainEvent) error {
+	logrus.Info("[point.EventHandler]", "handlePointEvent")
 	event := evt.(*events.PointsEvent)
 	_, err := interfaces.S.PointsScheduler.DealPointsEvent(event)
 	if err != nil {
-		log.Error("[point.EventHandler]", "error: ", err.Error())
+		logrus.Error("[point.EventHandler]", "error: ", err.Error())
 	}
 
 	return err
+}
+
+func handleAddPoints(e emitter.DomainEvent) error {
+	logrus.Info("handleAddPoints")
+
+	if evt, ok := e.(*events.AddPoints); ok {
+		return interfaces.S.Points.AddPoint(
+			evt.UserId,
+			evt.Points,
+			evt.Description,
+			evt.EventType,
+		)
+	}
+
+	return ErrorInvalidEventType
 }

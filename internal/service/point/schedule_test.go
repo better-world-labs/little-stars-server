@@ -8,7 +8,6 @@ import (
 	"aed-api-server/internal/pkg/db"
 	conf "aed-api-server/internal/pkg/domain/config"
 	"aed-api-server/internal/pkg/domain/emitter"
-	"aed-api-server/internal/service/point"
 	"context"
 	"github.com/stretchr/testify/assert"
 	"gitlab.openviewtech.com/openview-pub/gopkg/log"
@@ -59,7 +58,7 @@ func TestEmitter(t *testing.T) {
 		DeadLetterTopic: "test-dead",
 	})
 
-	point.InitEventHandler()
+	//point.InitEventHandler()
 	emitter.Start()
 
 	err := emitter.Emit(&events.PointsEvent{

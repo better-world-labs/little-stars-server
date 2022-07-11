@@ -33,6 +33,7 @@ type Service struct {
 	User service.UserServiceOld `inject:"-"`
 }
 
+//go:inject-component
 func NewTaskService() *Service {
 	return &Service{}
 }

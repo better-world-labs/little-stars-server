@@ -7,11 +7,12 @@ import (
 )
 
 type ImageBot struct {
-	url string
+	Url string `conf:"img-bot-service"`
 }
 
-func NewImageBotService(url string) *ImageBot {
-	return &ImageBot{url}
+//go:inject-component
+func NewImageBotService() *ImageBot {
+	return &ImageBot{}
 }
 
 func (s ImageBot) Call(tplName string, args map[string]interface{}, saveAs string) (string, error) {
@@ -21,8 +22,8 @@ func (s ImageBot) Call(tplName string, args map[string]interface{}, saveAs strin
 		"save":    saveAs,
 	})
 
-	log.Info("request", s.url, "body=", json)
-	resp, err := req.Post(s.url, req.Header{
+	log.Info("request", s.Url, "body=", json)
+	resp, err := req.Post(s.Url, req.Header{
 		"Content-Type": "application/json; charset=utf8",
 	}, json)
 

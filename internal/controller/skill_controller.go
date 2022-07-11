@@ -13,6 +13,7 @@ type SkillController struct {
 	Service service2.SkillService `inject:"-"`
 }
 
+//go:inject-component
 func NewSkillController() *SkillController {
 	return &SkillController{}
 }

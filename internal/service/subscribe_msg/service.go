@@ -12,10 +12,25 @@ import (
 	"time"
 )
 
-var templateIdMap = map[entities.SubscribeMessageKey]string{
-	entities.SMkPointsExpiring: "Hp0_c7lQ8kicztthTNTmDTjEVqQl2YraB1WqfaqDgWY",
-	entities.SMkWalkExpiring:   "tkQRItF-ipKOym08GEqe0c7rFtBolvezpjeAeG0LN1I",
-}
+const (
+	WxNotifyTemplateTaskExpired        = "tkQRItF-ipKOym08GEqe0c7rFtBolvezpjeAeG0LN1I"
+	WxNotifyTemplateCouponExpired      = "Hp0_c7lQ8kicztthTNTmDTjEVqQl2YraB1WqfaqDgWY"
+	WxNotifyTemplateAdventureAdventure = "Wt2SuY8pB7DoIuAEOS7UgPqAN8S51Vs_H2fi69YD7-8"
+)
+
+var (
+	templateIdMap = map[entities.SubscribeMessageKey]string{
+		entities.SMkPointsExpiring: WxNotifyTemplateCouponExpired,
+		entities.SMkWalkExpiring:   WxNotifyTemplateTaskExpired,
+		entities.SMkGamePoints:     WxNotifyTemplateAdventureAdventure,
+	}
+
+	templateEl = map[string]string{
+		WxNotifyTemplateAdventureAdventure: "notice_1_click",
+		WxNotifyTemplateTaskExpired:        "notice_2_click",
+		WxNotifyTemplateCouponExpired:      "notice_3_click",
+	}
+)
 
 var msgKeyMap = getMsgKeyMapFromTemplateIdMap(templateIdMap)
 
@@ -29,6 +44,7 @@ func getMsgKeyMapFromTemplateIdMap(templateIdMap map[entities.SubscribeMessageKe
 
 type svc struct{}
 
+//go:inject-component
 func NewSubscribeMsgService() *svc {
 	return &svc{}
 }
@@ -86,7 +102,8 @@ func (*svc) Send(userId int64, openId string, msgKey entities.SubscribeMessageKe
 	if !suc {
 		return false, nil
 	}
-	rst, err := interfaces.S.Wx.SendSubscribeMsg(openId, templateId, params)
+	el := templateEl[templateId]
+	rst, err := interfaces.S.Wx.SendSubscribeMsg(msgKey, openId, templateId, el, params)
 	if err != nil {
 		return false, err
 	}

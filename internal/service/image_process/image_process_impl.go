@@ -21,6 +21,7 @@ const (
 	DonationShareTpl = "complete-donation-card"
 )
 
+//go:inject-component
 func NewImageProcess() service.IImageProcess {
 	return &ImageProcess{}
 }

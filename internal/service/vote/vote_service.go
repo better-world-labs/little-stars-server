@@ -12,6 +12,7 @@ import (
 
 type voteService struct{}
 
+//go:inject-component
 func NewVoteService() service.VoteService {
 	return &voteService{}
 }

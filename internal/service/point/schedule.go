@@ -90,6 +90,7 @@ var schedulesMap map[entities.PointsEventType]*schedule = nil
 
 type pointsScheduler struct{}
 
+//go:inject-component
 func NewPointScheduler() *pointsScheduler {
 	return &pointsScheduler{}
 }
@@ -125,6 +126,18 @@ func (s *pointsScheduler) BuildPointsEventTypeSignEarly(userId, signEarlyId int6
 		Params: &events.PointsEventTypeSignEarlyParams{
 			SignEarlyId: signEarlyId,
 			Days:        days,
+		},
+	}
+}
+
+func (s *pointsScheduler) BuildPointsEventTypeGamePoints(userId, gameId int64, points int, description string) *events.PointsEvent {
+	return &events.PointsEvent{
+		PointsEventType: entities.PointsEventTypeGameReward,
+		UserId:          userId,
+		Params: &events.PointsEventTypeGamePoints{
+			GameId:      gameId,
+			Points:      points,
+			Description: description,
 		},
 	}
 }
@@ -255,6 +268,9 @@ func (s *pointsScheduler) DealPointsEvent(evt *events.PointsEvent) (*entities.De
 		}
 	case entities.PointsEventTypeReward:
 		points, description, err = parsePointsEventTypeRewardPoints(evt.Params, sch.Rules)
+
+	case entities.PointsEventTypeGameReward:
+		points, description, err = parsePointsEventTypeGamePoints(evt.Params, sch.Rules)
 	}
 
 	if err != nil {
@@ -308,6 +324,14 @@ func (s *pointsScheduler) DealPointsEvent(evt *events.PointsEvent) (*entities.De
 
 func parsePointsEventTypeRewardPoints(params interface{}, rules []*scheduleRule) (int, string, error) {
 	args, ok := params.(*events.PointsEventTypeRewardParams)
+	if !ok {
+		return 0, "", errors.New("event params type error")
+	}
+	return args.Points, args.Description, nil
+}
+
+func parsePointsEventTypeGamePoints(params interface{}, rules []*scheduleRule) (int, string, error) {
+	args, ok := params.(*events.PointsEventTypeGamePoints)
 	if !ok {
 		return 0, "", errors.New("event params type error")
 	}

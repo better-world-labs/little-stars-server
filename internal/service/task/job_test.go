@@ -97,6 +97,7 @@ func Test_Job(t *testing.T) {
 			BeginLimit:  time.Now(),
 			EndLimit:    time.Now().Add(_1d),
 			DeviceId:    testDeviceId,
+			Param:       "{}",
 		})
 		assert.Nil(t, err)
 

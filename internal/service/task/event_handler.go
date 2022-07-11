@@ -3,13 +3,14 @@ package task
 import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
+	"aed-api-server/internal/interfaces/facility"
 	"aed-api-server/internal/pkg/domain/emitter"
 	log "github.com/sirupsen/logrus"
 )
 
-func InitEventHandler() {
+func (t *Task) Listen(on facility.OnEvent) {
 	//监听用户事件，匹配到浏览文章和浏览视频，触发积分事件
-	emitter.On(&events.UserEvent{}, func(event emitter.DomainEvent) error {
+	on(&events.UserEvent{}, func(event emitter.DomainEvent) error {
 		userEvent, ok := event.(*events.UserEvent)
 		if !ok {
 			return nil
@@ -50,7 +51,7 @@ func InitEventHandler() {
 	})
 
 	//监听开宝箱事件，触发任务
-	emitter.On(&events.UserOpenTreasureChest{}, func(event emitter.DomainEvent) error {
+	on(&events.UserOpenTreasureChest{}, func(event emitter.DomainEvent) error {
 		chest, ok := event.(*events.UserOpenTreasureChest)
 		if !ok {
 			log.Error("convert event error")

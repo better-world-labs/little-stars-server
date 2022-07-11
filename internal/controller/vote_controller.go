@@ -124,6 +124,7 @@ func (c VoteController) GetOptionById(ctx *gin.Context) (interface{}, error) {
 	return option, nil
 }
 
+//go:inject-component
 func NewVoteController() *VoteController {
 	return &VoteController{}
 }

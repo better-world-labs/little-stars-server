@@ -1,9 +1,9 @@
 package middleware
 
 import (
-	"aed-api-server/internal/module/user"
 	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/utils"
+	"aed-api-server/internal/service/user"
 	"bytes"
 	"fmt"
 	"github.com/gin-gonic/gin"

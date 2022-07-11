@@ -17,6 +17,7 @@ require (
 	github.com/imroc/req v0.3.0
 	github.com/jtolds/gls v4.20.0+incompatible
 	github.com/magiconair/properties v1.8.1
+	github.com/mmcloughlin/geohash v0.10.0
 	github.com/name5566/leaf v0.0.0-20200516012428-8592b1abbbbe
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/robfig/cron/v3 v3.0.0
@@ -77,7 +78,7 @@ require (
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/ugorji/go/codec v1.1.7 // indirect
-	gitlab.openviewtech.com/openview-pub/gopkg v1.7.19
+	gitlab.openviewtech.com/openview-pub/gopkg v1.7.20
 	golang.org/x/crypto v0.0.0-20220408190544-5352b0902921 // indirect
 	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 	google.golang.org/protobuf v1.25.0 // indirect

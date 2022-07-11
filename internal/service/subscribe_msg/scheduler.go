@@ -3,40 +3,29 @@ package subscribe_msg
 import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
+	"aed-api-server/internal/interfaces/facility"
 	"aed-api-server/internal/pkg/utils"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
 
-const JobLockTime = 30 * 60 * 1000           // 任务加锁时间：30分钟
 const pointsExpiredTime = 2 * 60 * 60 * 1000 //用户积分即将在  ${pointsExpiredTime} 过期
 
-var JobLockKeySendPointsExpiringMsg = getSendMsgJobLockKey(entities.SMkPointsExpiring)
-var JobLockKeySendWalkConvertExpiringMsg = getSendMsgJobLockKey(entities.SMkWalkExpiring)
+var JobLockKeySendPointsExpiringMsg = facility.GetSendMsgJobLockKey(entities.SMkPointsExpiring)
+var JobLockKeySendWalkConvertExpiringMsg = facility.GetSendMsgJobLockKey(entities.SMkWalkExpiring)
 
 func getSendTimeKey(key entities.SubscribeMessageKey) string {
 	return fmt.Sprintf("msg-time:%s", key)
 }
 
-func getSendMsgJobLockKey(key entities.SubscribeMessageKey) string {
-	return fmt.Sprintf("jobLock:sendMsg:%s", key)
-}
-
-//安装定时任务
-func InitScheduler() {
+//Cron 安装定时任务
+func (*svc) Cron(run facility.RunFuncOnceAt) {
 	//8:00-21:00
-	_, err := interfaces.S.Cron.AddFunc("0 8-21 * * *", utils.JobLockDoWrap(JobLockKeySendPointsExpiringMsg, sendPointsExpiringMsg, JobLockTime))
-	if err != nil {
-		panic("installSchedulers error:" + err.Error())
-	}
+	run("0 8-21 * * *", JobLockKeySendPointsExpiringMsg, sendPointsExpiringMsg)
 
 	//20:00
-	_, err = interfaces.S.Cron.AddFunc("0 20 * * *", utils.JobLockDoWrap(JobLockKeySendWalkConvertExpiringMsg, sendWalkConvertExpiringMsg, JobLockTime))
-
-	if err != nil {
-		panic("installSchedulers error:" + err.Error())
-	}
+	run("0 20 * * *", JobLockKeySendWalkConvertExpiringMsg, sendWalkConvertExpiringMsg)
 }
 
 func sendPointsExpiringMsg() {

@@ -2,7 +2,6 @@ package interfaces
 
 import (
 	"aed-api-server/internal/interfaces/service"
-	cron "github.com/robfig/cron/v3"
 )
 
 type ServiceKeeper struct {
@@ -27,19 +26,17 @@ type ServiceKeeper struct {
 	Activity        service.ActivityService         `inject:"-"`
 	Early           service.EarlyService            `inject:"-"`
 	Donation        service.DonationService         `inject:"-"`
-	Evidence        service.EvidenceService         `inject:"-"`
-	Medal           service.MedalService            `inject:"-"`
-	UserMedal       service.UserMedalService        `inject:"-"`
+	Evidence        service.IEvidenceService        `inject:"-"`
+	Medal           service.IMedal                  `inject:"-"`
+	UserMedal       service.IUserMedal              `inject:"-"`
 	Stat            service.StatService             `inject:"-"`
 	Config          service.ConfigService           `inject:"-"`
 	Feedback        service.FeedbackService         `inject:"-"`
 	TaskBubble      service.MeritTreeTaskTaskBubble `inject:"-"`
 	Vote            service.VoteService             `inject:"-"`
 	SubscribeMsg    service.SubscribeMsg            `inject:"-"`
-	Wx              service.WechatClient            `inject:"-"`
-	//定时器 `inject:"-"`
-	Cron   *cron.Cron            `inject:"-"`
-	Market service.MarketService `inject:"-"`
+	Wx              service.IWechat                 `inject:"-"`
+	Market          service.MarketService           `inject:"-"`
 }
 
 var S = &ServiceKeeper{}

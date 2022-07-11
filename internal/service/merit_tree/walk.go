@@ -4,9 +4,6 @@ import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/service"
-	"aed-api-server/internal/module/user"
-	"aed-api-server/internal/pkg/config"
-	"aed-api-server/internal/pkg/crypto"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/response"
 	"aed-api-server/internal/pkg/utils"
@@ -14,19 +11,11 @@ import (
 	"time"
 )
 
-type walk struct{}
-
-var (
-	wechat user.WechatClient
-	crypt  *crypto.WXUserDataCrypt
-)
-
-// TODO 调整代码结构，把 WechatClient 注册到 ServiceKeeper
-func InitWalk(config *config.AppConfig) {
-	wechat = user.NewWechatClient(&config.Wechat)
-	crypt = crypto.NewWXUserDataCrypt(config.Wechat.AppID)
+type walk struct {
+	Wechat service.IWechat `inject:"-"`
 }
 
+//go:inject-component
 func NewWalkService() *walk {
 	return &walk{}
 }
@@ -40,31 +29,13 @@ type WalkConvert struct {
 	CreatedAt time.Time
 }
 
-type WxWalkData struct {
-	StepInfoList []*struct {
-		TimeStamp int64 `json:"timeStamp"`
-		Step      int   `json:"step"`
-	} `json:"stepInfoList"`
-}
-
-func getTodayWalk(req *service.WalkConvertInfoReq) (todayWalk int, err error) {
-	session, err := wechat.CodeToSession(req.Code)
+func (w *walk) getTodayWalk(req *entities.WechatDataDecryptReq) (todayWalk int, err error) {
+	walks, err := w.Wechat.GetWalks(req)
 	if err != nil {
 		return 0, err
 	}
 
-	var data WxWalkData
-	_, err = crypt.Decrypt(req.EncryptedData, req.Iv, session.SessionKey, &data)
-	if err != nil {
-		return 0, err
-	}
-
-	size := len(data.StepInfoList)
-	if size == 0 {
-		return 0, nil
-	}
-
-	return data.StepInfoList[size-1].Step, err
+	return walks.GetTodayWalks(), nil
 }
 
 type ConvertedInfo struct {
@@ -87,7 +58,7 @@ func getTotalConvertedInfo(userId int64) (*ConvertedInfo, error) {
 }
 
 //GetWalkConvertInfo 获取积分兑换信息
-func (*walk) GetWalkConvertInfo(userId int64, req *service.WalkConvertInfoReq) (*service.WalkConvertInfo, error) {
+func (w *walk) GetWalkConvertInfo(userId int64, req *entities.WechatDataDecryptReq) (*service.WalkConvertInfo, error) {
 	rst, err := getTotalConvertedInfo(userId)
 	if err != nil {
 		return nil, err
@@ -102,7 +73,7 @@ func (*walk) GetWalkConvertInfo(userId int64, req *service.WalkConvertInfoReq) (
 		}, nil
 	}
 
-	todayWalk, err := getTodayWalk(req)
+	todayWalk, err := w.getTodayWalk(req)
 	if err != nil {
 		return nil, err
 	}

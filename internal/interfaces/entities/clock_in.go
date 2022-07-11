@@ -44,6 +44,8 @@ type DeviceClockIn struct {
 
 // DeviceClockInStat 待打卡设备统计
 type DeviceClockInStat struct {
-	Total int64 `json:"total"`
-	Todo  int64 `json:"todo"`
+	Total        int64 `json:"total"`        //总设备数
+	Todo         int64 `json:"todo"`         //未打卡设备数
+	ClockInCount int64 `json:"clockInCount"` //打卡人次
+	UserCount    int64 `json:"userCount"`    //参与打卡的人数（去重）
 }

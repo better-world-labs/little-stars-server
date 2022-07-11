@@ -173,6 +173,7 @@ func (c MarketController) AdminGetOrderByVerifyCode(ctx *gin.Context) (interface
 	return NewOrderDto(order), nil
 }
 
+//go:inject-component
 func NewMarketController() *MarketController {
 	return &MarketController{}
 }

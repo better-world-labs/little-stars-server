@@ -2,78 +2,10 @@ package command
 
 import (
 	"aed-api-server/internal/interfaces"
-	"aed-api-server/internal/module/achievement"
-	"aed-api-server/internal/module/device"
-	"aed-api-server/internal/module/evidence"
-	"aed-api-server/internal/module/evidence/credential"
-	"aed-api-server/internal/module/exam"
-	"aed-api-server/internal/module/friends"
-	"aed-api-server/internal/module/user"
 	"aed-api-server/internal/pkg/config"
-	"aed-api-server/internal/service"
-	"aed-api-server/internal/service/clock_in"
-	"aed-api-server/internal/service/donation"
-	"aed-api-server/internal/service/essay"
-	"aed-api-server/internal/service/feedback"
-	"aed-api-server/internal/service/image_process"
-	"aed-api-server/internal/service/market"
-	"aed-api-server/internal/service/medal"
-	"aed-api-server/internal/service/merit_tree"
-	"aed-api-server/internal/service/merit_tree/task_bubble"
-	"aed-api-server/internal/service/point"
-	"aed-api-server/internal/service/project"
-	"aed-api-server/internal/service/stat"
-	"aed-api-server/internal/service/subscribe_msg"
-	"aed-api-server/internal/service/system_config"
-	"aed-api-server/internal/service/task"
-	user2 "aed-api-server/internal/service/user"
-	"aed-api-server/internal/service/user_config"
-	"aed-api-server/internal/service/vote"
-	"aed-api-server/internal/service/wechat"
-	"github.com/robfig/cron/v3"
 	"gitlab.openviewtech.com/openview-pub/gopkg/inject"
 )
 
-func LoadServices(c *config.AppConfig, component *inject.Component) {
-	component.Load(service.NewUserServiceOld())
-	component.Load(user.NewWechatClient(&c.Wechat))
-	component.Load(service.NewAidService())
-	component.Load(service.NewActivityService())
-	component.Load(service.NewTraceService())
-	component.Load(service.NewSkillService(&c.AliOss))
-	component.Load(service.NewCertService())
-	component.Load(task.NewTaskService())
-	component.Load(device.NewService())
-	component.Load(device.NewPicketCondition())
-	component.Load(project.NewProjectService())
-	component.Load(project.NewCourseService())
-	component.Load(exam.NewExamService(c))
-	component.Load(user_config.NewUserConfigService())
-	component.Load(user2.NewService())
-	component.Load(clock_in.NewService())
-	component.Load(point.NewService())
-	component.Load(point.NewPointScheduler())
-	component.Load(merit_tree.NewMeritTreeService())
-	component.Load(merit_tree.NewEarlyService())
-	component.Load(merit_tree.NewWalkService())
-	component.Load(merit_tree.NewTreasureChestService())
-	component.Load(friends.NewService())
-	component.Load(essay.NewService())
-	component.Load(donation.NewService())
-	component.Load(credential.NewService(c.CredentialConfig))
-	component.Load(evidence.NewService(c))
-	component.Load(medal.NewService())
-	component.Load(achievement.NewUserMedalService())
-	component.Load(stat.NewService())
-	component.Load(system_config.NewService())
-	component.Load(feedback.NewService())
-	component.Load(task_bubble.NewMeritTreeTaskBubbleService())
-	component.Load(vote.NewVoteService())
-	component.Load(subscribe_msg.NewSubscribeMsgService())
-	component.Load(wechat.NewWechatSrv())
-	component.Load(market.NewMarketService())
-	component.Load(cron.New())
-	component.Load(image_process.NewImageBotService(c.ImgBotService))
-	component.Load(image_process.NewImageProcess())
+func loadServices(c *config.AppConfig, component *inject.Component) {
 	component.Load(interfaces.S)
 }

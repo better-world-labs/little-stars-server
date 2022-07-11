@@ -3,23 +3,32 @@ package user
 import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
+	"aed-api-server/internal/interfaces/facility"
+	service2 "aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg/db"
-	"aed-api-server/internal/pkg/domain/emitter"
 	page "aed-api-server/internal/pkg/query"
+	"aed-api-server/internal/pkg/utils"
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"strings"
 	"time"
 )
 
 type Service struct {
+	facility.Sender `inject:"sender"`
+	position
+	TreasureChest service2.TreasureChestService `inject:"-"`
 }
 
+//go:inject-component
 func NewService() *Service {
-	return &Service{}
+	return &Service{
+		position: &positionService{},
+	}
 }
 
-func (Service) ListAllUsers() ([]*entities.UserDTO, error) {
+func (*Service) ListAllUsers() ([]*entities.UserDTO, error) {
 	accounts := make([]*entities.UserDTO, 0)
 
 	err := db.Table("account").Find(&accounts)
@@ -30,7 +39,21 @@ func (Service) ListAllUsers() ([]*entities.UserDTO, error) {
 	return accounts, nil
 }
 
-func (Service) GetListUserByIDs(ids []int64) ([]*entities.SimpleUser, error) {
+func (s *Service) GetMapUserByIDs(ids []int64) (map[int64]*entities.SimpleUser, error) {
+	users, err := s.GetListUserByIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[int64]*entities.SimpleUser)
+	for _, u := range users {
+		m[u.ID] = u
+	}
+
+	return m, nil
+}
+
+func (*Service) GetListUserByIDs(ids []int64) ([]*entities.SimpleUser, error) {
 	accounts := make([]*entities.SimpleUser, 0)
 	err := db.Table("account").In("id", ids).Find(&accounts)
 	if err != nil {
@@ -39,7 +62,7 @@ func (Service) GetListUserByIDs(ids []int64) ([]*entities.SimpleUser, error) {
 	return accounts, nil
 }
 
-func (Service) StatUser() (dto entities.UserStat, err error) {
+func (*Service) StatUser() (dto entities.UserStat, err error) {
 	exited, err := db.SQL(`
 		select
 			count(*) as total_count,
@@ -53,7 +76,7 @@ func (Service) StatUser() (dto entities.UserStat, err error) {
 	return dto, nil
 }
 
-func (Service) GetUserByPhone(phone string) (*entities.SimpleUser, bool, error) {
+func (*Service) GetUserByPhone(phone string) (*entities.SimpleUser, bool, error) {
 	var account entities.SimpleUser
 	exists, err := db.Table("account").Where("mobile = ?", phone).Get(&account)
 	if err != nil {
@@ -62,7 +85,7 @@ func (Service) GetUserByPhone(phone string) (*entities.SimpleUser, bool, error) 
 
 	return &account, exists, nil
 }
-func (Service) GetUserById(id int64) (*entities.SimpleUser, bool, error) {
+func (*Service) GetUserById(id int64) (*entities.SimpleUser, bool, error) {
 	var account entities.SimpleUser
 	exists, err := db.Table("account").Where("id = ?", id).Get(&account)
 	if err != nil {
@@ -72,7 +95,7 @@ func (Service) GetUserById(id int64) (*entities.SimpleUser, bool, error) {
 	return &account, exists, nil
 }
 
-func (Service) GetUserByOpenid(openid string) (*entities.SimpleUser, bool, error) {
+func (*Service) GetUserByOpenid(openid string) (*entities.SimpleUser, bool, error) {
 	var account entities.SimpleUser
 	exists, err := db.Table("account").Where("openid = ?", openid).Get(&account)
 	if err != nil {
@@ -82,7 +105,7 @@ func (Service) GetUserByOpenid(openid string) (*entities.SimpleUser, bool, error
 	return &account, exists, nil
 }
 
-func (Service) RecordUserEvent(userId int64, eventType entities.UserEventType, eventParams ...interface{}) {
+func (s *Service) RecordUserEvent(userId int64, eventType entities.UserEventType, eventParams ...interface{}) {
 	event := events.UserEvent{
 		UserId:      userId,
 		EventType:   eventType,
@@ -96,13 +119,13 @@ func (Service) RecordUserEvent(userId int64, eventType entities.UserEventType, e
 		log.Error("RecordUserEvent err:", err)
 	}
 
-	err = emitter.Emit(&event)
+	err = s.Send(&event)
 	if err != nil {
 		log.Error("emitter.Emit(event) err:", err)
 	}
 }
 
-func (Service) BatchGetLastUserEventByType(userIds []int64, eventType entities.UserEventType) (map[int64]*events.UserEvent, error) {
+func (*Service) BatchGetLastUserEventByType(userIds []int64, eventType entities.UserEventType) (map[int64]*events.UserEvent, error) {
 	var eventList []*events.UserEvent
 
 	err := db.SQL(fmt.Sprintf(`
@@ -121,7 +144,7 @@ func (Service) BatchGetLastUserEventByType(userIds []int64, eventType entities.U
 	return r, err
 }
 
-func (Service) GetLastUserEventByType(userId int64, eventType entities.UserEventType) (*events.UserEvent, error) {
+func (*Service) GetLastUserEventByType(userId int64, eventType entities.UserEventType) (*events.UserEvent, error) {
 	var event events.UserEvent
 	existed, err := db.SQL(`
 		select *
@@ -141,7 +164,7 @@ func (Service) GetLastUserEventByType(userId int64, eventType entities.UserEvent
 	return &event, nil
 }
 
-func (Service) GetUserOpenIdById(userId int64) (string, error) {
+func (*Service) GetUserOpenIdById(userId int64) (string, error) {
 	var user entities.UserDTO
 	existed, err := db.Table("account").Where("id = ?", userId).Select("openid").Get(&user)
 	if err != nil {
@@ -153,7 +176,7 @@ func (Service) GetUserOpenIdById(userId int64) (string, error) {
 	return user.Openid, nil
 }
 
-func (s Service) Traverse(f func(dto entities.UserDTO)) {
+func (s *Service) Traverse(f func(dto entities.UserDTO)) {
 	users, err := s.ListAllUsers()
 	if err != nil {
 		log.Error("ListAllUsers error", err.Error())
@@ -165,7 +188,7 @@ func (s Service) Traverse(f func(dto entities.UserDTO)) {
 	}
 }
 
-func (Service) TraverseSubscribeMessageTicketUser(key entities.SubscribeMessageKey, f func(dto []*entities.UserDTO)) {
+func (*Service) TraverseSubscribeMessageTicketUser(key entities.SubscribeMessageKey, f func(dto []*entities.UserDTO)) {
 	for i := 1; ; i++ {
 		p := page.Query{Page: i, Size: 5000}
 		accounts := make([]*entities.UserDTO, 0)
@@ -190,4 +213,75 @@ func (Service) TraverseSubscribeMessageTicketUser(key entities.SubscribeMessageK
 
 		f(accounts)
 	}
+}
+
+func (s *Service) DealUserReportEvents(userId int64, key string, params []interface{}) {
+	utils.Go(func() {
+		s.RecordUserEvent(userId, entities.GetUserEventTypeOfReport(key), params...)
+	})
+
+	utils.Go(func() {
+		switch key {
+		case entities.Report_enterAedMap:
+			dealUserEnterAEDMap(userId)
+
+		case entities.Report_readNews:
+			dealUserReadNews(userId)
+
+		case entities.Report_showSubscribeQrCode:
+			dealShowSubscribeQrCode(userId)
+
+		case entities.Report_openTreasureChest:
+			if len(params) == 0 {
+				return
+			}
+			arg := params[0].(map[string]interface{})
+			id, ok := arg["treasureChestId"]
+			if !ok {
+				return
+			}
+			err := s.TreasureChest.OpenTreasureChest(userId, int(id.(float64)))
+			if err != nil {
+				log.Error("OpenTreasureChest err", err)
+			}
+		case entities.Report_scanPage:
+		case entities.Report_scanVideo:
+		}
+	})
+}
+
+func (s *Service) UpdatePosition(position *entities.Position) error {
+	utils.Go(func() {
+		err := s.RecordPosition(position.AccountID, position.Latitude, position.Longitude)
+		if err != nil {
+			log.Error("s.RecordPosition error", err)
+		}
+	})
+	return nil
+}
+
+func (*Service) ParseInfoFromJwtToken(token string) (*entities.User, error) {
+	split := strings.Split(token, " ")
+
+	if len(split) != 2 || split[0] != "Bearer" || split[1] == "" {
+		return nil, errors.New("invalid token")
+	}
+
+	claims, err := ParseToken(split[1])
+	if err != nil {
+		return nil, errors.New("invalid token")
+	}
+
+	var acc entities.User
+	exists, err := db.Table("account").Where("id=?", claims.ID).Get(&acc)
+	if err != nil {
+		log.Error("account query error:", err)
+		return nil, errors.New("invalid token")
+	}
+
+	if !exists {
+		log.Info("user not exited", claims.ID)
+		return nil, errors.New("invalid token")
+	}
+	return &acc, nil
 }

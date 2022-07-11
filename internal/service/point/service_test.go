@@ -35,7 +35,8 @@ func InitDbAndConfig() func() {
 
 func Test_GetUserTotalPoints(t *testing.T) {
 	t.Cleanup(InitDbAndConfig())
-	points, err := interfaces.S.Points.GetUserTotalPoints(userId)
+	s := NewService()
+	points, err := s.GetUserTotalPoints(userId)
 	assert.Nil(t, err)
 	assert.True(t, points > 0)
 	log.Info(points)
@@ -43,11 +44,13 @@ func Test_GetUserTotalPoints(t *testing.T) {
 
 func Test_GetUnReceivePoints(t *testing.T) {
 	t.Cleanup(InitDbAndConfig())
-	_, err := interfaces.S.Points.GetUnReceivePoints(userId)
+	s := NewService()
+	_, err := s.GetUnReceivePoints(userId)
 	assert.Nil(t, err)
 }
 
 func Test_insertPoints_ReceivePoints(t *testing.T) {
+	s := NewService()
 	t.Cleanup(InitDbAndConfig())
 	now := time.Now()
 	expired := now.Add(10 * time.Second)
@@ -57,7 +60,7 @@ func Test_insertPoints_ReceivePoints(t *testing.T) {
 	}, expired)
 	assert.Nil(t, err)
 
-	points, err := interfaces.S.Points.GetUnReceivePoints(userId)
+	points, err := s.GetUnReceivePoints(userId)
 	assert.Nil(t, err)
 	n := len(points)
 	assert.True(t, n > 0)
@@ -68,10 +71,10 @@ func Test_insertPoints_ReceivePoints(t *testing.T) {
 	marshalJSON, _ := flow.ExpiredAt.MarshalJSON()
 	assert.Equal(t, json, marshalJSON)
 
-	err = interfaces.S.Points.ReceivePoints(userId, flow.Id)
+	err = s.ReceivePoints(userId, flow.Id)
 	assert.Nil(t, err)
 
-	points, err = interfaces.S.Points.GetUnReceivePoints(userId)
+	points, err = s.GetUnReceivePoints(userId)
 	assert.Nil(t, err)
 	assert.Equal(t, len(points), n-1)
 }

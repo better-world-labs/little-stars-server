@@ -14,6 +14,7 @@ import (
 
 type service struct{}
 
+//go:inject-component
 func NewService() *service {
 	return &service{}
 }

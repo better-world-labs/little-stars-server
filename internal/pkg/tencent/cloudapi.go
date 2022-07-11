@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"strconv"
 )
 
 // 腾讯地点云 https://lbs.qq.com/service/placeCloud/placeCloudGuide/cloudOverview
@@ -94,44 +93,6 @@ func ListRangeDeviceIDs(center location.Coordinate, radius float64, query page.Q
 	}
 
 	return deviceIds, nil
-}
-
-func SearchMapDevice(lng, lat, distance float64, page, size int) ([]Device, error) {
-	if distance > 10000 {
-		distance = 10000
-	}
-	params := make(map[string]string)
-	params["location"] = fmt.Sprintf("%v,%v", lat, lng)
-	params["radius"] = fmt.Sprintf("%v", distance)
-	params["filter"] = "x.device_name=aed"
-	params["table_id"] = config.TblDevice
-	params["key"] = config.APIKey
-	params["page_size"] = fmt.Sprintf("%v", size)
-
-	var dataParams string
-	for k, _ := range params {
-		dataParams = dataParams + k + "=" + params[k] + "&"
-	}
-	paramStr := dataParams[0 : len(dataParams)-1]
-	sign := getSign("/place_cloud/search/nearby", params)
-	url := fmt.Sprintf(`https://apis.map.qq.com/place_cloud/search/nearby?%v&sig=%v`, paramStr, sign)
-
-	data, err := Get(url)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := new(SearchMapResp)
-	err = json.Unmarshal(data, resp)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.Status != 0 {
-		return nil, fmt.Errorf("place_cloud/search/nearby return status %v", resp.Status)
-	}
-
-	return resp.Result.Data, nil
 }
 
 func TransTblDataBatch(devices []*entities.Device) []*TblData {
@@ -274,33 +235,4 @@ func DelDevice(udid []string) error {
 		return fmt.Errorf("place_cloud/data/delete return status %v", string(res))
 	}
 	return nil
-}
-
-func ListDevice(pageIndex, pageSize int) ([]Device, error) {
-	params := make(map[string]string)
-	params["key"] = config.APIKey
-	params["table_id"] = config.TblDevice
-	params["page_index"] = strconv.Itoa(pageIndex)
-	params["page_size"] = strconv.Itoa(pageSize)
-
-	var dataParams string
-	for k, _ := range params {
-		dataParams = dataParams + k + "=" + params[k] + "&"
-	}
-	paramStr := dataParams[0 : len(dataParams)-1]
-	sign := getSign("/place_cloud/data/list", params)
-	url := fmt.Sprintf(`https://apis.map.qq.com/place_cloud/data/list?%v&sig=%v`, paramStr, sign)
-	res, err := Get(url)
-	if err != nil {
-		return nil, err
-	}
-	resp := new(ListResp)
-	err = json.Unmarshal(res, resp)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Status != 0 {
-		return nil, fmt.Errorf("place_cloud/data/list return status %v", string(res))
-	}
-	return resp.Result.Data, nil
 }

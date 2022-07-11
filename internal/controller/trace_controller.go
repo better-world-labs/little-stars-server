@@ -12,6 +12,7 @@ type TraceController struct {
 	Service service.TraceService `inject:"-"`
 }
 
+//go:inject-component
 func NewTraceController() *TraceController {
 	return &TraceController{}
 }

@@ -23,6 +23,7 @@ const (
 	Level5 = "星耀"
 )
 
+//go:inject-component
 func NewProjectService() *Service {
 	return &Service{}
 }

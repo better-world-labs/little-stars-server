@@ -13,9 +13,9 @@ func TestDistributeLock(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, lock.Locked())
 
-	lock, err2 := GetDistributeLock("lockname", 30000)
+	lock2, err2 := GetDistributeLock("lockname", 30000)
 	assert.Nil(t, err2)
-	assert.False(t, lock.Locked())
+	assert.False(t, lock2.Locked())
 
 	err = lock.Release()
 	assert.Nil(t, err)

@@ -41,7 +41,7 @@ func StartServer(c *config.AppConfig, p *properties.Properties) {
 }
 
 func LoadComponents(c *config.AppConfig, component *inject.Component) {
-	LoadServices(c, component)
-	LoadController(c, component)
+	loadFacility(component)
+	loadServices(c, component)
 	autoLoad(component)
 }

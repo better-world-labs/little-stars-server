@@ -13,6 +13,7 @@ import (
 
 type EarlyService struct{}
 
+//go:inject-component
 func NewEarlyService() service.EarlyService {
 	return &EarlyService{}
 }

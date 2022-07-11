@@ -26,6 +26,7 @@ var (
 type marketService struct {
 }
 
+//go:inject-component
 func NewMarketService() *marketService {
 	return &marketService{}
 }

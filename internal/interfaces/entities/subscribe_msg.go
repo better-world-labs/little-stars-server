@@ -17,4 +17,7 @@ const (
 
 	//SMkWalkExpiring 步行即将过期
 	SMkWalkExpiring SubscribeMessageKey = "walk_expiring"
+
+	//SMkGamePoints 游戏通知
+	SMkGamePoints SubscribeMessageKey = "game_points"
 )

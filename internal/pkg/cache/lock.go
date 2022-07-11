@@ -36,13 +36,13 @@ func GetDistributeLock(name string, expiresInMicroSecond int64) (Lock, error) {
 	defer conn.Close()
 	v := uuid.NewString()
 
-	expiresAt := time.Now().Add(time.Millisecond * time.Duration(expiresInMicroSecond))
 	reply, err := conn.Do("SET", name, v, "NX", "PX", expiresInMicroSecond)
 	if err != nil {
 		return nil, err
 	}
 
 	suc := reply == "OK"
+	expiresAt := time.Now().Add(time.Millisecond * time.Duration(expiresInMicroSecond))
 	return &distributeLock{
 		name:                 name,
 		value:                v,

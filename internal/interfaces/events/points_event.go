@@ -10,6 +10,13 @@ import (
 // 事件参数
 type (
 
+	//PointsEventTypeGamePoints 游戏积分事件参数
+	PointsEventTypeGamePoints struct {
+		GameId      int64  `json:"gameId"`
+		Points      int    `json:"points"`
+		Description string `json:"description"`
+	}
+
 	//PointsEventTypeMockedExamParams 早起积分事件参数
 	PointsEventTypeMockedExamParams struct {
 		ExamId int64   `json:"examId"`
@@ -116,6 +123,10 @@ func (p *PointsEvent) UnmarshalJSON(b []byte) error {
 
 	case entities.PointsEventTypeReward:
 		p.Params = &PointsEventTypeRewardParams{}
+
+	case entities.PointsEventTypeGameReward:
+		p.Params = &PointsEventTypeGamePoints{}
+
 	default:
 		p.Params = make(map[string]interface{}, 0)
 	}

@@ -5,11 +5,11 @@ import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/interfaces/service"
-	"aed-api-server/internal/module/aid/track"
 	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/base"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/service/activity"
+	"aed-api-server/internal/service/aid"
 	"github.com/go-xorm/xorm"
 	"github.com/google/uuid"
 )
@@ -308,7 +308,7 @@ func (s *activityService) SaveActivityDeviceGot(event *events.DeviceGotEvent) ([
 	var rst []*entities.DealPointsEventRst
 	return rst, db.Begin(func(session *xorm.Session) error {
 		a := activity.CreateActivityDeviceGot(event)
-		isDeviceGot, err := track.GetService().IsDeviceGot(session, event.Aid, event.UserId)
+		isDeviceGot, err := aid.GetService().IsDeviceGot(session, event.Aid, event.UserId)
 		if err != nil {
 			return err
 		}
@@ -324,7 +324,7 @@ func (s *activityService) SaveActivityDeviceGot(event *events.DeviceGotEvent) ([
 			return err
 		}
 
-		err = track.GetService().MarkDeviceGotWithSession(session, event.Aid, event.UserId)
+		err = aid.GetService().MarkDeviceGotWithSession(session, event.Aid, event.UserId)
 		if err != nil {
 			return err
 		}
@@ -362,7 +362,7 @@ func (s *activityService) SaveActivitySceneArrived(event *events.SceneArrivedEve
 			return err
 		}
 
-		if err := track.GetService().MarkSceneArrivedWithSession(session, event.Aid, event.UserId); err != nil {
+		if err := aid.GetService().MarkSceneArrivedWithSession(session, event.Aid, event.UserId); err != nil {
 			return err
 		}
 

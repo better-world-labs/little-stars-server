@@ -27,6 +27,7 @@ const (
 	PointsEventTypeTransaction      PointsEventType = 72 //积分交易
 	PointsEventTypeSubscribe        PointsEventType = 73 //公众号
 	PointsEventTypeReward           PointsEventType = 74 //积分奖励
+	PointsEventTypeGameReward       PointsEventType = 75 //游戏奖励
 
 	WalkConvertRatio      = 50 //步行兑换积分比率
 	FriendAddPointPercent = 10 //好友加成比例

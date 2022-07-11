@@ -168,7 +168,6 @@ func (e *KafkaEmitter) startReadLoop() {
 			if err == nil {
 				traceId, _ := getHeader(message, _traceIdTag)
 				utils.SetTraceId(traceId, func() {
-					log.Infof("receive msg:%v", message)
 					e.kafkaMessageDeal(message)
 				})
 			} else {
@@ -208,7 +207,7 @@ func (e *KafkaEmitter) Emit(events ...DomainEvent) error {
 			TopicPartition: kafka.TopicPartition{Topic: &e.topic, Partition: kafka.PartitionAny},
 		}
 
-		log.Infof("EmitEvent: type=%s, message=%s\n", eventType, msgValue)
+		log.Infof("send: type=%s, msg=%s", eventType, msgValue)
 		return e.kafkaPublishMessage(kafkaMsg)
 	}
 
@@ -227,8 +226,10 @@ func (e *KafkaEmitter) kafkaPublishMessage(msg *kafka.Message) error {
 
 func (e *KafkaEmitter) kafkaMessageDeal(msg *kafka.Message) {
 	messageType, exists := getHeader(msg, _eventTypeTag)
+	log.Infof("receive: type=%s, msg=%s", messageType, msg.Value)
+
 	if !exists {
-		log.Infof("[emitter.KafkaEmitter] eventType not found\n")
+		log.Infof("[emitter.KafkaEmitter] eventType not found")
 		e.commitMessage(msg)
 		return
 	}

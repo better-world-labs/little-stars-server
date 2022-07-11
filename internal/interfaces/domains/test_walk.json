@@ -1,0 +1,132 @@
+{
+  "stepInfoList": [
+    {
+      "timestamp": 1654444800,
+      "step": 13460
+    },
+    {
+      "timestamp": 1654531200,
+      "step": 10561
+    },
+    {
+      "timestamp": 1654617600,
+      "step": 15545
+    },
+    {
+      "timestamp": 1654704000,
+      "step": 9178
+    },
+    {
+      "timestamp": 1654790400,
+      "step": 10752
+    },
+    {
+      "timestamp": 1654876800,
+      "step": 2356
+    },
+    {
+      "timestamp": 1654963200,
+      "step": 872
+    },
+    {
+      "timestamp": 1655049600,
+      "step": 13425
+    },
+    {
+      "timestamp": 1655136000,
+      "step": 9564
+    },
+    {
+      "timestamp": 1655222400,
+      "step": 16955
+    },
+    {
+      "timestamp": 1655308800,
+      "step": 11300
+    },
+    {
+      "timestamp": 1655395200,
+      "step": 10133
+    },
+    {
+      "timestamp": 1655481600,
+      "step": 1917
+    },
+    {
+      "timestamp": 1655568000,
+      "step": 5145
+    },
+    {
+      "timestamp": 1655654400,
+      "step": 12764
+    },
+    {
+      "timestamp": 1655740800,
+      "step": 9669
+    },
+    {
+      "timestamp": 1655827200,
+      "step": 12915
+    },
+    {
+      "timestamp": 1655913600,
+      "step": 12818
+    },
+    {
+      "timestamp": 1656000000,
+      "step": 11480
+    },
+    {
+      "timestamp": 1656086400,
+      "step": 5609
+    },
+    {
+      "timestamp": 1656172800,
+      "step": 6859
+    },
+    {
+      "timestamp": 1656259200,
+      "step": 9466
+    },
+    {
+      "timestamp": 1656345600,
+      "step": 10428
+    },
+    {
+      "timestamp": 1656432000,
+      "step": 6807
+    },
+    {
+      "timestamp": 1656518400,
+      "step": 10914
+    },
+    {
+      "timestamp": 1656604800,
+      "step": 10315
+    },
+    {
+      "timestamp": 1656691200,
+      "step": 4157
+    },
+    {
+      "timestamp": 1656777600,
+      "step": 7714
+    },
+    {
+      "timestamp": 1656864000,
+      "step": 10759
+    },
+    {
+      "timestamp": 1656950400,
+      "step": 10556
+    },
+    {
+      "timestamp": 1657036800,
+      "step": 1804
+    }
+  ],
+  "watermark": {
+    "timestamp": 1657075038,
+    "appid": "wx4053ee583576b3c7"
+  }
+}
