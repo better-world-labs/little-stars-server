@@ -2,8 +2,8 @@ package db_test
 
 import (
 	"aed-api-server/internal/interfaces"
-	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/db"
+	"aed-api-server/internal/server/config"
 	"errors"
 	"fmt"
 	"github.com/go-xorm/xorm"

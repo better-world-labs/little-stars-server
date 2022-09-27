@@ -4,16 +4,14 @@ import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/pkg/asserts"
 	"aed-api-server/internal/pkg/cache"
-	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/db"
-	config2 "aed-api-server/internal/pkg/domain/config"
 	"aed-api-server/internal/pkg/domain/emitter"
+	"aed-api-server/internal/pkg/location"
 	"aed-api-server/internal/pkg/sms"
-	"aed-api-server/internal/pkg/tencent"
 	"aed-api-server/internal/pkg/utils"
+	"aed-api-server/internal/server/config"
 	"aed-api-server/internal/service/img"
 	"aed-api-server/internal/service/medal"
-	"aed-api-server/internal/service/speech"
 	"aed-api-server/internal/service/user"
 	"context"
 	"fmt"
@@ -63,20 +61,20 @@ func Initialize(loader func(conf *config.AppConfig, component *inject.Component)
 	cache.InitPool(conf.Redis)
 
 	interfaces.InitConfig(conf) //TODO 清理
-	speech.Init()
 	user.InitJwt(conf.JwtConfig.Secret, conf.JwtConfig.ExpiresIn)
 	db.InitEngine(conf.Database)
-	tencent.Init(&conf.MapConfig)
 	initAsserts()
 	initImg()
 	medal.Init()
 	sms.InitSmsClient(conf.SmsClient)
+	location.Init(&conf.Tencent)
 
 	component.Conf(p)
 	loader(conf, component)
 	component.Install()
 
-	initEmitter(conf.Domain)
+	initEmitter(p)
+
 	//initScheduler 依赖了component，须放在component.Install()之后
 	initScheduler()
 	return component
@@ -85,7 +83,6 @@ func Initialize(loader func(conf *config.AppConfig, component *inject.Component)
 // Start 启动阶段
 func Start() {
 	initRouter(conf)
-	emitter.Start()
 	startHttpServer()
 }
 
@@ -121,10 +118,10 @@ func stopHttpServer() {
 	}
 }
 
-func initEmitter(c config2.DomainEventConfig) {
-	emitter.SetContext(context.Background())
-	emitter.SetConfig(&c)
+func initEmitter(p *properties.Properties) {
+	emitter.SetConfig(p)
 	initEventHandler()
+	emitter.Start()
 }
 
 func initAsserts() {

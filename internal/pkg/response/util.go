@@ -16,19 +16,14 @@ func ReplyError(c *gin.Context, err interface{}) {
 
 func ReplyErrorWithData(c *gin.Context, err interface{}, data interface{}) {
 	switch e := err.(type) {
-	case *ApiError:
-		res := NewResponseError(e.Code(), e.Message(), data)
-		HTTPComplete(c, e.HttpStatus(), res)
+	case *AuthorizationError:
+		res := NewResponseError(http.StatusUnauthorized, e.Error(), data)
+		HTTPComplete(c, http.StatusUnauthorized, res)
 		break
 
 	case validator.ValidationErrors:
 		res := NewResponseError(StatusInvalidParam, e[0].Error(), data)
 		HTTPComplete(c, http.StatusBadRequest, res)
-		break
-
-	case *HTTPServiceError:
-		res := NewResponseError(e.Code, e.Message, data)
-		HTTPComplete(c, e.HttpStatus, res)
 		break
 
 	case *BusinessError:

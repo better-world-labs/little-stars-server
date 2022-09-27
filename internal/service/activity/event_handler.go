@@ -20,8 +20,6 @@ func (*activityService) Listen(on facility.OnEvent) {
 	on(&events.GoingToSceneEvent{}, onGoingToScene)
 	on(&events.GoingToGetDeviceEvent{}, onGoingToGetDevice)
 	on(&events.SceneCalledEvent{}, onSceneCalled)
-	on(&events.DeviceGotEvent{}, onDeviceGot)
-	on(&events.SceneArrivedEvent{}, onSceneArrived)
 }
 
 func GetService() service.ActivityService {
@@ -59,7 +57,6 @@ func onGoingToGetDevice(event emitter.DomainEvent) error {
 	if evt, ok := event.(*events.GoingToGetDeviceEvent); ok {
 		log.Info("[activity.EventHandler]", "onGoingToGetDevice", event)
 		return GetService().SaveActivityGoingToGetDevice(evt)
-
 	}
 
 	return ErrorInvalidEventType
@@ -69,25 +66,6 @@ func onSceneCalled(event emitter.DomainEvent) error {
 	if evt, ok := event.(*events.SceneCalledEvent); ok {
 		log.Info("[activity.EventHandler]", "onSceneCalled", event)
 		return GetService().SaveActivitySceneCalled(evt)
-	}
-
-	return ErrorInvalidEventType
-}
-
-func onDeviceGot(event emitter.DomainEvent) error {
-	if evt, ok := event.(*events.DeviceGotEvent); ok {
-		log.Info("[activity.EventHandler]", "onDeviceGot", event)
-		_, err := GetService().SaveActivityDeviceGot(evt)
-		return err
-	}
-
-	return ErrorInvalidEventType
-}
-
-func onSceneArrived(event emitter.DomainEvent) error {
-	if evt, ok := event.(*events.SceneArrivedEvent); ok {
-		log.Info("[activity.EventHandler]", "onSceneArrived", event)
-		return GetService().SaveActivitySceneArrived(evt)
 	}
 
 	return ErrorInvalidEventType

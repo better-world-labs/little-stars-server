@@ -2,6 +2,7 @@ package service
 
 import (
 	"aed-api-server/internal/interfaces/entities"
+	page "aed-api-server/internal/pkg/query"
 	"time"
 )
 
@@ -29,6 +30,11 @@ type PointsService interface {
 	// 临时接口,用于交易,由于目前没有账户的概念,募捐增加的现在募捐出维护,此处只扣减人的
 	AddPoint(userId int64, points int, description string, eventType entities.PointsEventType) error
 
+	DealPoint(userId int64, points int, description string, eventType entities.PointsEventType, autoReceive bool) error
+
+	// Pay 积分支付
+	Pay(userId int64, points int, description string) error
+
 	// GetUnReceivePoints 获取用户未领取的积分流水
 	GetUnReceivePoints(userId int64) ([]*entities.UserPointsFlow, error)
 
@@ -52,4 +58,6 @@ type PointsService interface {
 	Detail(accountID int64) ([]*entities.Point, error)
 
 	TotalPoints(accountID int64) (float64, error)
+
+	PageAwardPointFLows(query page.Query, filter entities.AwardFlowQueryCommand) (page.Result[*entities.AwardPointFlow], error)
 }

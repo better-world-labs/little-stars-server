@@ -57,6 +57,14 @@ type (
 	WechatWalkData struct {
 		StepInfoList []*WechatStepInfo `json:"stepInfoList"`
 	}
+
+	WechatEncryptKey struct {
+		EncryptKey string `json:"encrypt_key"`
+		Version    int    `json:"version"`
+		ExpireIn   int64  `json:"expire_in"`
+		Iv         string `json:"iv"`
+		CreateTime int64  `json:"create_time"`
+	}
 )
 
 func (w WechatWalkData) GetTodayWalks() int {
@@ -68,4 +76,23 @@ func (w WechatWalkData) GetTodayWalks() int {
 	}
 
 	return 0
+}
+
+func (w WechatEncryptKey) ExpiredInSecond() time.Duration {
+	return time.Duration(w.ExpireIn)
+}
+
+func (w WechatEncryptKey) Expired() bool {
+	created := time.UnixMilli(w.CreateTime * 1000)
+	return time.Now().After(created.Add(time.Duration(w.ExpireIn) * time.Second))
+}
+
+func GetEncryptKey(keys []*WechatEncryptKey, version int) *WechatEncryptKey {
+	for _, k := range keys {
+		if k.Version == version {
+			return k
+		}
+	}
+
+	return nil
 }

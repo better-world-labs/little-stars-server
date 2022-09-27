@@ -51,7 +51,7 @@ func (c VoteController) GetVoteOptions(ctx *gin.Context) (interface{}, error) {
 	}, nil
 }
 
-func (c VoteController) DoVote(ctx *gin.Context) (interface{}, error) {
+func (c VoteController) VotePoints(ctx *gin.Context) (interface{}, error) {
 	userId := ctx.MustGet(pkg.AccountIDKey).(int64)
 	idStr := ctx.Param("id")
 	var options struct {
@@ -68,7 +68,32 @@ func (c VoteController) DoVote(ctx *gin.Context) (interface{}, error) {
 		return nil, err
 	}
 
-	err = interfaces.S.Vote.DoVote(id, userId, options.OptionIds)
+	err = interfaces.S.Vote.VotePoints(id, userId, options.OptionIds)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+func (c VoteController) VoteNormal(ctx *gin.Context) (interface{}, error) {
+	userId := ctx.MustGet(pkg.AccountIDKey).(int64)
+	idStr := ctx.Param("id")
+	var options struct {
+		OptionIds []int64 `json:"optionIds" binding:"required"`
+	}
+
+	err := ctx.ShouldBindJSON(&options)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	err = interfaces.S.Vote.VoteNormal(id, userId, options.OptionIds)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +157,8 @@ func NewVoteController() *VoteController {
 func (c VoteController) MountAuthRouter(r *route.Router) {
 	voteGroup := r.Group("/votes")
 	voteGroup.GET("/:id/remain-times", c.GetUserRemainTimes)
-	voteGroup.POST("/:id/do-vote", c.DoVote)
+	voteGroup.POST("/:id/do-vote", c.VoteNormal)
+	voteGroup.POST("/:id/do-points-vote", c.VotePoints)
 }
 
 func (c VoteController) MountNoAuthRouter(r *route.Router) {

@@ -14,8 +14,10 @@ import "aed-api-server/internal/pkg/utils"
 //	pool.Stop()
 //}
 
-func RunTask(f func() (interface{}, error)) *Future {
-	future := newFuture()
+type Fn func() (interface{}, error)
+
+func RunTask[T any](f Fn) *Future[T] {
+	future := newFuture[T]()
 	utils.Go(func() {
 		defer close(future.resultChan)
 

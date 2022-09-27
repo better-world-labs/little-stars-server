@@ -44,8 +44,14 @@ type (
 	VoteRecord struct {
 		VoteId    int64
 		UserId    int64
+		Mode      int
 		OptionIds []int64
 	}
+)
+
+const (
+	VoteRecordModeNormal = 1 //正常投票模式
+	VoteRecordModePoints = 2 //积分投票模式
 )
 
 func (v Vote) Status() int {

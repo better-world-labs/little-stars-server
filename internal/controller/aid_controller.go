@@ -32,12 +32,14 @@ func (con *AidController) MountNoAuthRouter(r *route.Router) {
 	r.GET("/aid/infos-hours", con.ListOneHoursInfos)
 	r.GET("/aid/info", con.GetHelpInfo)
 	r.POST("/aid/aid-called/:token/:aid", con.ActionAidCalled)
-	r.GET("/c/:token/:aid", con.ActionAidCalledPage)
+	r.GET("/p/c/:token/:aid", con.ActionAidCalledPage)
 }
 
 func (con *AidController) MountAuthRouter(r *route.Router) {
 	r.POST("/aid/publish", con.PublishHelpInfo)
+	r.POST("/aid/exercise/publish", con.PublishHelpInfoExercise)
 	r.POST("/aid/arrived", con.ActionArrived)
+	r.POST("/aid/exercise/arrived", con.ActionNPCArrived)
 	r.POST("/aid/going-to-scene", con.ActionGoingToScene)
 	r.POST("/aid/called", con.ActionCalled)
 	r.GET("/aid/me/published", con.ListMyHelpInfosPaged)
@@ -69,24 +71,35 @@ func (con *AidController) PublishHelpInfo(c *gin.Context) (interface{}, error) {
 	return feedBack, nil
 }
 
+func (con *AidController) PublishHelpInfoExercise(c *gin.Context) (interface{}, error) {
+	accountID := c.MustGet(pkg.AccountIDKey).(int64)
+	var body entities.PublishDTO
+	err := c.ShouldBindJSON(&body)
+	if err != nil {
+		return nil, err
+	}
+
+	id, npc, err := con.Service.PublishHelpInfoExercise(accountID, &body)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"id":  id,
+		"npc": npc,
+	}, nil
+}
+
 func (con *AidController) ListHelpInfosPaged(c *gin.Context) (interface{}, error) {
-	var position *location.Coordinate
-	lat := c.Query("latitude")
-	lon := c.Query("longitude")
+	param := struct {
+		*location.Coordinate
 
-	if lat != "" && lon != "" {
-		log.Infof("lon=%s, lat=%s", lon, lat)
-		latF, err := strconv.ParseFloat(lat, 64)
-		if err != nil {
-			return nil, response.NewIllegalArgumentError(err.Error())
-		}
+		Exercise bool `form:"exercise"`
+	}{}
 
-		lonF, err := strconv.ParseFloat(lon, 64)
-		if err != nil {
-			return nil, response.NewIllegalArgumentError(err.Error())
-		}
-
-		position = &location.Coordinate{Longitude: lonF, Latitude: latF}
+	err := c.ShouldBindQuery(&param)
+	if err != nil {
+		return nil, err
 	}
 
 	pageQuery, err := page.BindPageQuery(c)
@@ -94,7 +107,7 @@ func (con *AidController) ListHelpInfosPaged(c *gin.Context) (interface{}, error
 		return nil, err
 	}
 
-	result, err := con.Service.ListHelpInfosPaged(pageQuery, position, &entities.HelpInfo{})
+	result, err := con.Service.ListHelpInfosPaged(pageQuery, param.Coordinate, &entities.HelpInfo{Exercise: param.Exercise})
 	if err != nil {
 		return nil, err
 	}
@@ -151,12 +164,7 @@ func (con *AidController) ActionArrived(c *gin.Context) (interface{}, error) {
 		return nil, response.NewIllegalArgumentError(err.Error())
 	}
 
-	aidInteger, err := strconv.ParseInt(param.AidID, 10, 64)
-	if err != nil {
-		return nil, response.NewIllegalArgumentError(err.Error())
-	}
-
-	eventRst, err := con.Service.ActionArrived(accountID, aidInteger, param.Coordinate)
+	eventRst, err := con.Service.ActionArrived(accountID, param.AidID, param.Coordinate)
 	if err != nil {
 		return nil, err
 	}
@@ -178,12 +186,7 @@ func (con *AidController) ActionCalled(c *gin.Context) (interface{}, error) {
 		return nil, response.NewIllegalArgumentError(err.Error())
 	}
 
-	aidInteger, err := strconv.ParseInt(param.AidID, 10, 64)
-	if err != nil {
-		return nil, response.NewIllegalArgumentError(err.Error())
-	}
-
-	err = con.Service.ActionCalled(accountID, aidInteger)
+	err = con.Service.ActionCalled(accountID, param.AidID)
 	if err != nil {
 		return nil, err
 	}
@@ -199,12 +202,7 @@ func (con *AidController) ActionGoingToScene(c *gin.Context) (interface{}, error
 		return nil, response.NewIllegalArgumentError(err.Error())
 	}
 
-	aidInteger, err := strconv.ParseInt(param.AidID, 10, 64)
-	if err != nil {
-		return nil, response.NewIllegalArgumentError(err.Error())
-	}
-
-	err = con.Service.ActionGoingToScene(accountID, aidInteger)
+	err = con.Service.ActionGoingToScene(accountID, param.AidID)
 	if err != nil {
 		return nil, err
 	}
@@ -353,5 +351,16 @@ func (con *AidController) ListHelpInfosMyAll(c *gin.Context) (interface{}, error
 		return nil, err
 	}
 
-	return page.Result{List: append(participated.List.([]*entities.HelpInfoComposedDTO), published.List.([]*entities.HelpInfoComposedDTO)...), Total: participated.Total + published.Total}, nil
+	return page.NewResult[*entities.HelpInfoComposedDTO](append(participated.List, published.List...), participated.Total+published.Total), nil
+}
+
+func (con *AidController) ActionNPCArrived(ctx *gin.Context) (interface{}, error) {
+	var param entities.ActionDTO
+
+	err := ctx.ShouldBindJSON(&param)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, con.Service.ActionNPCArrived(param.AidID)
 }

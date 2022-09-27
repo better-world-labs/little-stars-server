@@ -17,7 +17,13 @@ import (
 
 type ossService struct {
 	client *oss.Client
-	C      *Config `conf:"alioss"`
+
+	Endpoint        string `conf:"alioss.endpoint"`
+	AccesskeyId     string `conf:"alioss.accesskey-id"`
+	AccesskeySecret string `conf:"alioss.accesskey-secret"`
+	BucketName      string `conf:"alioss.bucket-name"`
+	Domain          string `conf:"alioss.domain"`
+	UploadDir       string `conf:"alioss.upload-dir"`
 }
 
 const (
@@ -31,10 +37,29 @@ func NewOssService() service.OssService {
 
 func (s *ossService) getClient() *oss.Client {
 	if s.client == nil {
-		client, _ := oss.New(s.C.Endpoint, s.C.AccesskeyId, s.C.AccesskeySecret)
+		client, _ := oss.New(s.Endpoint, s.AccesskeyId, s.AccesskeySecret)
 		s.client = client
 	}
 	return s.client
+}
+
+func (s *ossService) Upload(path string, reader io.Reader) (string, error) {
+	client := s.getClient()
+
+	bucket, err := client.Bucket(s.BucketName)
+	if err != nil {
+		log.Printf("oss bucket create failed, msg error: %s", err)
+		return "", err
+	}
+
+	path = fmt.Sprintf("%s/%s", s.UploadDir, path)
+	err = bucket.PutObject(path, reader)
+	if err != nil {
+		log.Printf("oss upload file failed, msg error: %s", err)
+		return "", err
+	}
+
+	return fmt.Sprintf("https://%s/%s", s.Domain, path), nil
 }
 
 func (s *ossService) OssUpload(fileheader *multipart.FileHeader) (string, error) {
@@ -46,7 +71,7 @@ func (s *ossService) OssUpload(fileheader *multipart.FileHeader) (string, error)
 		return "", err
 	}
 
-	bucket, err := client.Bucket(s.C.BucketName)
+	bucket, err := client.Bucket(s.BucketName)
 	if err != nil {
 		log.Printf("oss bucket create failed, msg error: %s", err)
 		return "", err
@@ -59,7 +84,7 @@ func (s *ossService) OssUpload(fileheader *multipart.FileHeader) (string, error)
 		return "", err
 	}
 
-	return fmt.Sprintf("http://%s/%s", s.C.Domain, objectName), nil
+	return fmt.Sprintf("http://%s/%s", s.Domain, objectName), nil
 }
 
 func (s *ossService) GetUploadToken(prefix string, accountID int64) (interface{}, error) {
@@ -71,7 +96,7 @@ func (s *ossService) GetUploadToken(prefix string, accountID int64) (interface{}
 	var config ConfigStruct
 	config.Expiration = tokenExpire
 	var condition []string
-	uploadDir := fmt.Sprintf("%s%s/%v/", prefix, s.C.UploadDir, accountID) // 上传目录 /aed/用户id/
+	uploadDir := fmt.Sprintf("%s%s/%v/", prefix, s.UploadDir, accountID) // 上传目录 /aed/用户id/
 	condition = append(condition, "starts-with")
 	condition = append(condition, "$key")
 	condition = append(condition, uploadDir)
@@ -83,13 +108,13 @@ func (s *ossService) GetUploadToken(prefix string, accountID int64) (interface{}
 		return "", nil
 	}
 	debyte := base64.StdEncoding.EncodeToString(result)
-	h := hmac.New(func() hash.Hash { return sha1.New() }, []byte(s.C.AccesskeySecret))
+	h := hmac.New(func() hash.Hash { return sha1.New() }, []byte(s.AccesskeySecret))
 	io.WriteString(h, debyte)
 	signedStr := base64.StdEncoding.EncodeToString(h.Sum(nil))
 
 	var policyToken PolicyToken
-	policyToken.AccessKeyId = s.C.AccesskeyId
-	policyToken.Host = fmt.Sprintf("https://%s", s.C.Domain)
+	policyToken.AccessKeyId = s.AccesskeyId
+	policyToken.Host = fmt.Sprintf("https://%s", s.Domain)
 	policyToken.Expire = expire_end
 	policyToken.Signature = string(signedStr)
 	policyToken.Directory = uploadDir

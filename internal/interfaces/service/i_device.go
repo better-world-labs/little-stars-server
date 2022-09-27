@@ -15,16 +15,17 @@ type DeviceService interface {
 	// @Param page 开始页
 	// @Param page 数量
 	// @return []Device 设备列表
-	ListDevices(from location.Coordinate, distance float64, p page.Query) ([]*entities.Device, error)
+	ListDevices(from location.Coordinate, distance float64) ([]*entities.Device, error)
 
-	// ListDevicesWithoutDistance 不计算距离的设备列表
-	// @Param lng 经度
-	// @Param lat 纬度
-	// @Param distance 周围多少米
-	// @Param page 开始页
-	// @Param page 数量
-	// @return []Device 设备列表
-	ListDevicesWithoutDistance(from location.Coordinate, distance float64, p page.Query) ([]*entities.Device, error)
+	GetById(id string) (*entities.BaseDevice, error)
+
+	UpdateDevice(device *entities.BaseDevice) error
+
+	CreateDevice(device *entities.BaseDevice) error
+
+	DeleteDevices(ids []string) error
+
+	ListDevicesEncrypted(userId int64, from location.Coordinate, distance float64, keyVersion int) (string, error)
 
 	// ListDevicesByIDs  find list by multi deviceId
 	// @Param from start point
@@ -96,4 +97,10 @@ type DeviceService interface {
 	ImportDevices(reader io.Reader) error
 
 	SyncDevices() error
+
+	ListLatestDevices(latest int64) ([]*entities.Device, error)
+
+	RiskArea(center location.Coordinate) ([]*entities.RiskArea, error)
+
+	PageDevices(page *page.Query, keyword string) (page.Result[*entities.BaseDevice], error)
 }

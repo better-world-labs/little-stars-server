@@ -7,7 +7,6 @@ import (
 	"aed-api-server/internal/pkg/cursor"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/location"
-	page "aed-api-server/internal/pkg/query"
 	"aed-api-server/internal/pkg/utils"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -100,7 +99,7 @@ func (s Service) GenJobsByUserLocation(userId int64, coordinate location.Coordin
 	}
 
 	//2.搜索附近的AED设备
-	list, err := interfaces.S.Device.ListDevicesWithoutDistance(coordinate, Nearby, page.Query{Page: 0, Size: AedCount})
+	list, err := interfaces.S.Device.ListDevices(coordinate, Nearby)
 	if err != nil {
 		return nil, err
 	}

@@ -34,6 +34,16 @@ type (
 		Source   string    `json:"source"   xorm:"source"`
 		CreateAt time.Time `json:"createAt" xorm:"created_at"`
 	}
+
+	CreateQrCodeReq struct {
+		Source   string `json:"source"`
+		Sharer   string `json:"sharer"`
+		PagePath string `json:"pagePath"`
+	}
+
+	CreateQrCodeRes struct {
+		Image string `json:"image"`
+	}
 )
 
 func (t *Trace) GetSharerTag() (interface{}, error) {

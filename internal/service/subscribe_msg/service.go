@@ -16,6 +16,7 @@ const (
 	WxNotifyTemplateTaskExpired        = "tkQRItF-ipKOym08GEqe0c7rFtBolvezpjeAeG0LN1I"
 	WxNotifyTemplateCouponExpired      = "Hp0_c7lQ8kicztthTNTmDTjEVqQl2YraB1WqfaqDgWY"
 	WxNotifyTemplateAdventureAdventure = "Wt2SuY8pB7DoIuAEOS7UgPqAN8S51Vs_H2fi69YD7-8"
+	WxNotifyTemplateFeedComment        = "zytgwDCQsTqgzEvRQGZUzgXaEKYi0nQdLqP5Nd9JEQE"
 )
 
 var (
@@ -23,6 +24,7 @@ var (
 		entities.SMkPointsExpiring: WxNotifyTemplateCouponExpired,
 		entities.SMkWalkExpiring:   WxNotifyTemplateTaskExpired,
 		entities.SMkGamePoints:     WxNotifyTemplateAdventureAdventure,
+		entities.SMKFeedComment:    WxNotifyTemplateFeedComment,
 	}
 
 	templateEl = map[string]string{
@@ -89,7 +91,9 @@ func (*svc) GetLastReport(userId int64, key string) (templates []*entities.Subsc
 	}
 	return templates, setting, reportAt, nil
 }
-func (*svc) Send(userId int64, openId string, msgKey entities.SubscribeMessageKey, params interface{}) (bool, error) {
+func (*svc) Send(userId int64, openId string, msgKey entities.SubscribeMessageKey, params interface{}, page string) (bool, error) {
+	log.Infof("SubscribeMessageSend: userId=%d, msgKey=%s", userId, msgKey)
+
 	templateId, ok := templateIdMap[msgKey]
 	if !ok {
 		return false, errors.New("SubscribeMessageKey invalid:" + string(msgKey))
@@ -99,11 +103,17 @@ func (*svc) Send(userId int64, openId string, msgKey entities.SubscribeMessageKe
 	if err != nil {
 		return false, err
 	}
+
 	if !suc {
+		log.Warnf("user has no ticket")
 		return false, nil
 	}
-	el := templateEl[templateId]
-	rst, err := interfaces.S.Wx.SendSubscribeMsg(msgKey, openId, templateId, el, params)
+	if page == "" {
+		el := templateEl[templateId]
+		page = fmt.Sprintf("/pages/index/index?templateId=%s&templateKey=%s&templateEl=%s", templateId, msgKey, el)
+	}
+
+	rst, err := interfaces.S.Wx.SendSubscribeMsg(openId, templateId, page, params)
 	if err != nil {
 		return false, err
 	}
@@ -201,25 +211,6 @@ func updateSendMsgTickets(userId int64, templates []*entities.SubscribeTemplateS
 
 func getTableFieldFromSubscribeMessageKey(msgKey entities.SubscribeMessageKey) string {
 	return string(msgKey)
-}
-
-func ListUsersSubscriptionValidTicket(msgKey entities.SubscribeMessageKey) ([]*entities.NotifiedSubscription, error) {
-	tableFieldName := getTableFieldFromSubscribeMessageKey(msgKey)
-	var arr []*entities.NotifiedSubscription
-	err := db.Table("user_subscribe_message").
-		Alias("m").
-		Join("LEFT", []string{"account", "a"}, "m.user_id = a.id").Cols("m.*", "a.openid").
-		Where(fmt.Sprintf("%s > 0", tableFieldName)).
-		Find(&arr)
-	return arr, err
-}
-
-func reduceWalkTicket(userId int64) error {
-	_, err := db.Exec(`
-		update user_subscribe_message set walk_expiring = walk_expiring - 1 where user_id = ?
-    `, userId)
-
-	return err
 }
 
 //使用一次发送通知的机会

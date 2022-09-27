@@ -3,19 +3,20 @@ package controller
 import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
+	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/feedback"
-	"aed-api-server/internal/pkg/global"
 	"aed-api-server/internal/pkg/response"
 	"aed-api-server/internal/service/activity"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type ActivityController struct {
+	Aid service.AidService `inject:"-"`
 }
 
 //go:inject-component
@@ -31,10 +32,10 @@ func (con *ActivityController) MountNoAuthRouter(r *route.Router) {
 }
 
 func (con *ActivityController) MountAuthRouter(r *route.Router) {
-	r.POST("/aid/going-to-learning", con.GoingToLearning)
 	r.POST("/aid/scene-report", con.CreateScene)
 	r.POST("/aid/going-to-device", con.GoingToDevice)
 	r.POST("/aed/borrow", con.GetDevice)
+	r.POST("/aed/exercise/borrow", con.NPCGetDevice)
 }
 
 func (con *ActivityController) ListActivities(c *gin.Context) (interface{}, error) {
@@ -126,17 +127,15 @@ func (con *ActivityController) GetOneByID(c *gin.Context) (interface{}, error) {
 }
 
 func (con *ActivityController) GoingToDevice(c *gin.Context) (interface{}, error) {
-	type GoingToDevice struct {
-		AidId int64 `json:"aidId,omitempty,string" binding:"required"`
-	}
+	var param entities.ActionDTO
+
 	accountID := c.MustGet(pkg.AccountIDKey).(int64)
-	req := new(GoingToDevice)
-	err := c.ShouldBindJSON(req)
+	err := c.ShouldBindJSON(&param)
 	if err != nil {
 		return nil, err
 	}
 
-	err = activity.GetService().SaveActivityGoingToGetDevice(events.NewGoingToGetDeviceEvent(req.AidId, accountID))
+	err = activity.GetService().SaveActivityGoingToGetDevice(events.NewGoingToGetDeviceEvent(param.AidID, accountID))
 	if err != nil {
 		return nil, err
 	}
@@ -145,17 +144,14 @@ func (con *ActivityController) GoingToDevice(c *gin.Context) (interface{}, error
 }
 
 func (con *ActivityController) GetDevice(c *gin.Context) (interface{}, error) {
-	type BorrowDevice struct {
-		AidId int64 `json:"aidId,omitempty,string" binding:"required"`
-	}
+	var param entities.ActionDTO
 	accountID := c.MustGet(pkg.AccountIDKey).(int64)
-	req := new(BorrowDevice)
-	err := c.ShouldBindJSON(req)
+	err := c.ShouldBindJSON(&param)
 	if err != nil {
 		return nil, err
 	}
 
-	pointEvt, err := activity.GetService().SaveActivityDeviceGot(events.NewDeviceGotEvent(req.AidId, accountID))
+	pointEvt, err := activity.GetService().SaveActivityDeviceGot(events.NewDeviceGotEvent(param.AidID, accountID))
 	if err != nil {
 		return nil, err
 	}
@@ -194,36 +190,32 @@ func (con *ActivityController) GetManyByIDs(c *gin.Context) (interface{}, error)
 	return map[string]interface{}{"activities": res}, nil
 }
 
-// 废弃
-func (con *ActivityController) GoingToLearning(c *gin.Context) (interface{}, error) {
-	accountID := c.MustGet(pkg.AccountIDKey).(int64)
-	param := make(map[string]interface{}, 1)
+func (con *ActivityController) NPCGetDevice(c *gin.Context) (interface{}, error) {
+	var param entities.ActionDTO
+
 	err := c.ShouldBindJSON(&param)
-	if err != nil {
-		return nil, response.NewIllegalArgumentError(err.Error())
-	}
-
-	aid, err := strconv.ParseInt(param["aidId"].(string), 10, 64)
-	if err != nil {
-		return nil, response.NewIllegalArgumentError(err.Error())
-	}
-
-	err = activity.GetService().Create(&entities.Activity{
-		HelpInfoID: aid,
-		Class:      activity.ClassSkillLearning,
-		UserID:     &accountID,
-		Created:    global.FormattedTime(time.Now()),
-	})
-
 	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	helpInfo, exists, err := con.Aid.GetHelpInfoByID(param.AidID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		return nil, errors.New("help info not found")
+	}
+
+	if helpInfo.NpcId == nil {
+		return nil, errors.New("npc not found")
+	}
+
+	return nil, activity.GetService().SaveActivityNPCDeviceGot(events.NewDeviceGotEvent(param.AidID, *helpInfo.NpcId))
 }
 
 type RecordSceneReportDTO struct {
-	AidID       int64    `json:"aidId,string"`
+	AidID       int64    `json:"aidId"`
 	Description string   `json:"description"`
 	Images      []string `json:"images"`
 }

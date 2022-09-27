@@ -8,7 +8,7 @@ import (
 )
 
 func playersMapUserIds(players []*entities.GameProcess) []int64 {
-	set := utils.NewInt64Set()
+	set := utils.NewSet[int64]()
 
 	for _, p := range players {
 		set.Add(p.UserId)

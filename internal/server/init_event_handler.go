@@ -8,8 +8,8 @@ import (
 func initEventHandler() {
 	for _, instances := range component.GetInstances() {
 		if o, ok := instances.Obj.(facility.Listener); ok {
-			o.Listen(func(event emitter.DomainEvent, handler emitter.DomainEventHandler) {
-				emitter.On(event, handler)
+			o.Listen(func(event emitter.DomainEvent, handler emitter.DomainEventHandler) emitter.Emitter {
+				return emitter.On(event, handler)
 			})
 		}
 	}

@@ -12,8 +12,6 @@ import (
 	"aed-api-server/internal/pkg/location"
 	page "aed-api-server/internal/pkg/query"
 	"aed-api-server/internal/pkg/response"
-	"aed-api-server/internal/pkg/tencent"
-	"aed-api-server/internal/pkg/utils"
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -21,7 +19,11 @@ import (
 )
 
 type aidService struct {
-	UserService service2.UserServiceOld `inject:"-"`
+	UserService       service2.UserServiceOld `inject:"-"`
+	User              service2.UserService    `inject:"-"`
+	PracticeOrganizer int64                   `conf:"practice-organizer"`
+
+	npcSelector *NPCSelector
 }
 
 // ArrivedEffectiveRange 到达现场的有效距离
@@ -29,11 +31,29 @@ const ArrivedEffectiveRange = 1000
 
 //go:inject-component
 func NewAidService() service2.AidService {
-	return &aidService{}
+	return &aidService{npcSelector: newNPCSelector()}
 }
 
 func (s *aidService) Action120Called(aidID int64) error {
 	return emitter.Emit(events.NewAidCalled(aidID))
+}
+
+func (s *aidService) ActionNPCArrived(aidId int64) error {
+	helpInfo, exists, err := s.GetHelpInfoByID(aidId)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return errors.New("help info not found")
+	}
+
+	if helpInfo.NpcId == nil {
+		return errors.New("no npc found")
+	}
+
+	event := events.NewSceneArrivedEvent(aidId, *helpInfo.NpcId, 0)
+	return interfaces.S.Activity.SaveActivitySceneArrived(event)
 }
 
 func (s *aidService) ActionArrived(userId int64, aidID int64, coordinate *location.Coordinate) ([]*entities.DealPointsEventRst, error) {
@@ -55,7 +75,7 @@ func (s *aidService) ActionArrived(userId int64, aidID int64, coordinate *locati
 		return nil, nil
 	}
 
-	distances := tencent.DistanceFrom(*helpInfo.Coordinate, []location.Coordinate{*coordinate})
+	distances := location.DistanceFrom(helpInfo.Coordinate, []location.Coordinate{*coordinate})
 	log.Infof("distance for (%f,%f) and (%f,%f) is %d", helpInfo.Longitude, helpInfo.Latitude, coordinate.Longitude, coordinate.Latitude, distances[0])
 	if distances[0] > ArrivedEffectiveRange {
 		return nil, response.ErrorTooFar
@@ -69,7 +89,7 @@ func (s *aidService) ActionArrived(userId int64, aidID int64, coordinate *locati
 
 	rst := make([]*entities.DealPointsEventRst, 0)
 
-	if times < pkg.UserPointsMaxTimesSceneArrived {
+	if !helpInfo.Exercise && times < pkg.UserPointsMaxTimesSceneArrived {
 		eventRst, err := interfaces.S.PointsScheduler.DealPointsEvent(&events.PointsEvent{
 			PointsEventType: entities.PointsEventTypeArrived,
 			UserId:          userId,
@@ -99,20 +119,41 @@ func (s *aidService) ActionGoingToScene(userId int64, aidID int64) error {
 	return emitter.Emit(events.NewGoingToSceneEvent(aidID, userId))
 }
 
-func (s *aidService) PublishHelpInfo(userId int64, dto *entities.PublishDTO) (id int64, rst []*entities.DealPointsEventRst, err error) {
+func (s *aidService) randomNPC() (*entities.SimpleUser, error) {
+	phone := s.npcSelector.RandomPhone()
+	u, exists, err := s.User.GetUserByPhone(phone)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		return s.randomNPC()
+	}
+
+	return u, nil
+}
+
+func (s *aidService) PublishHelpInfoExercise(userId int64, dto *entities.PublishDTO) (id int64, npc *entities.SimpleUser, err error) {
 	session := db.GetSession()
 	defer session.Close()
 
+	npc, err = s.randomNPC()
+	if err != nil {
+		return 0, nil, err
+	}
+
 	err = db.WithTransaction(session, func() error {
 		helpInfo := &entities.HelpInfo{
-			Coordinate: &location.Coordinate{
+			Coordinate: location.Coordinate{
 				Longitude: dto.Longitude,
 				Latitude:  dto.Latitude,
 			},
 			Images:        dto.Images,
 			Address:       dto.Address,
 			DetailAddress: dto.DetailAddress,
+			Exercise:      true,
 			Publisher:     userId,
+			NpcId:         &npc.ID,
 			PublishTime:   time.Now(),
 		}
 		_, err := session.Table("aid_help_info").Insert(helpInfo)
@@ -120,7 +161,36 @@ func (s *aidService) PublishHelpInfo(userId int64, dto *entities.PublishDTO) (id
 			return err
 		}
 
-		_, err = session.Table("aid_help_image").Insert(FromImageDTOs(helpInfo.ID, dto.Images))
+		err = emitter.Emit(&events.HelpInfoPublishedEvent{
+			HelpInfo: *helpInfo,
+		})
+
+		id = helpInfo.ID
+		return err
+	})
+
+	return
+}
+
+func (s *aidService) PublishHelpInfo(userId int64, dto *entities.PublishDTO) (id int64, rst []*entities.DealPointsEventRst, err error) {
+	session := db.GetSession()
+	defer session.Close()
+
+	practice := userId == s.PracticeOrganizer
+	err = db.WithTransaction(session, func() error {
+		helpInfo := &entities.HelpInfo{
+			Coordinate: location.Coordinate{
+				Longitude: dto.Longitude,
+				Latitude:  dto.Latitude,
+			},
+			Images:        dto.Images,
+			Address:       dto.Address,
+			DetailAddress: dto.DetailAddress,
+			Publisher:     userId,
+			Practice:      practice,
+			PublishTime:   time.Now(),
+		}
+		_, err := session.Table("aid_help_info").Insert(helpInfo)
 		if err != nil {
 			return err
 		}
@@ -162,15 +232,10 @@ func (s *aidService) ComposeHelpInfoDTO(infos []*entities.HelpInfo, from *locati
 
 	for i, e := range infos {
 		helpInfoIDs[i] = e.ID
-		locations[i] = *e.Coordinate
+		locations[i] = e.Coordinate
 	}
 
-	imagesFuture := s.GetHelpImagesByHelpInfoIDsAsync(helpInfoIDs)
 	latestActivityFuture := interfaces.S.Activity.ListMultiLatestCategorySortedAsync(helpInfoIDs, 1)
-	images, err := imagesFuture()
-	if err != nil {
-		return nil, err
-	}
 
 	latestActivitiesMap, err := latestActivityFuture()
 	if err != nil {
@@ -179,7 +244,7 @@ func (s *aidService) ComposeHelpInfoDTO(infos []*entities.HelpInfo, from *locati
 
 	var distanceFrom []int64
 	if from != nil && len(locations) > 0 {
-		distanceFrom = tencent.DistanceFrom(*from, locations)
+		distanceFrom = location.DistanceFrom(*from, locations)
 	}
 
 	res := make([]*entities.HelpInfoComposedDTO, 0)
@@ -195,7 +260,6 @@ func (s *aidService) ComposeHelpInfoDTO(infos []*entities.HelpInfo, from *locati
 		activities := latestActivitiesMap[e.ID]
 		s.FillDetailInfo(activities, &dto)
 
-		dto.Images = entities.FromImageModels(images[e.ID])
 		res = append(res, &dto)
 	}
 
@@ -253,7 +317,7 @@ func (s *aidService) ListHelpInfosInner24h() ([]*entities.HelpInfo, error) {
 	arr := make([]*entities.HelpInfo, 0)
 	t := time.Now().Add(-time.Hour * 24)
 	fmt.Println(t)
-	err := session.Table("aid_help_info").Where("publish_time >= ?", t).Find(&arr)
+	err := session.Table("aid_help_info").Where("publish_time >= ? and exercise = 0", t).Find(&arr)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +325,7 @@ func (s *aidService) ListHelpInfosInner24h() ([]*entities.HelpInfo, error) {
 	return arr, nil
 }
 
-func (s *aidService) ListHelpInfosPaged(pageQuery *page.Query, position *location.Coordinate, condition *entities.HelpInfo) (*page.Result, error) {
+func (s *aidService) ListHelpInfosPaged(pageQuery *page.Query, position *location.Coordinate, condition *entities.HelpInfo) (*page.Result[*entities.HelpInfoComposedDTO], error) {
 	session := db.GetSession()
 	defer session.Close()
 
@@ -272,13 +336,14 @@ func (s *aidService) ListHelpInfosPaged(pageQuery *page.Query, position *locatio
 	}
 
 	infos := make([]*entities.HelpInfo, 0)
-	count, err := joined.Desc("publish_time").FindAndCount(&infos, condition)
+	count, err := joined.UseBool("exercise").Desc("publish_time").FindAndCount(&infos, condition)
+
 	if err != nil {
 		return nil, err
 	}
 
 	dtos, err := s.ComposeHelpInfoDTO(infos, position)
-	var r page.Result
+	var r page.Result[*entities.HelpInfoComposedDTO]
 	r.List = dtos
 	r.Total = int(count)
 	return &r, err
@@ -289,12 +354,25 @@ func (s *aidService) ListOneHoursInfos() ([]*entities.HelpInfo, error) {
 	infos := make([]*entities.HelpInfo, 0)
 
 	err := db.Table("aid_help_info").
-		Where("publish_time > ?", oneHoursAgo).Desc("publish_time").Find(&infos)
+		Where("publish_time > ? and exercise = 0", oneHoursAgo).Desc("publish_time").Find(&infos)
 
 	return infos, err
 }
 
-func (s *aidService) ListHelpInfosParticipatedPaged(pageQuery *page.Query, userID int64) (*page.Result, error) {
+func (s *aidService) CountHelpInfosAboutMe(userId int64) (int64, error) {
+	var count struct {
+		Count int64
+	}
+	_, err := db.SQL(` select count(1) count from aid_help_info   
+      where publisher = ?
+      or exists(
+        select distinct help_info_id from aid_activity where user_id = ?
+    )`, userId, userId).Get(&count)
+
+	return count.Count, err
+}
+
+func (s *aidService) ListHelpInfosParticipatedPaged(pageQuery *page.Query, userID int64) (*page.Result[*entities.HelpInfoComposedDTO], error) {
 	session := db.GetSession()
 	defer session.Close()
 
@@ -316,77 +394,10 @@ func (s *aidService) ListHelpInfosParticipatedPaged(pageQuery *page.Query, userI
 	}
 
 	dtos, err := s.ComposeHelpInfoDTO(infos, nil)
-	var r page.Result
+	var r page.Result[*entities.HelpInfoComposedDTO]
 	r.List = dtos
 	r.Total = int(count)
 	return &r, err
-}
-
-func (*aidService) GetHelpImagesByHelpInfoIDs(helpInfoIDs []int64) (map[int64][]*entities.HelpImage, error) {
-	session := db.GetSession()
-	defer session.Close()
-
-	m := make(map[int64][]*entities.HelpImage, 0)
-	arr := make([]*entities.HelpImage, 0)
-	err := session.Table("aid_help_image").In("help_info_id", helpInfoIDs).Find(&arr)
-	if err != nil {
-		return nil, err
-	}
-
-	for i, e := range arr {
-		v, exists := m[e.HelpInfoID]
-		if !exists {
-			v = make([]*entities.HelpImage, 0)
-			m[e.HelpInfoID] = v
-		}
-
-		m[e.HelpInfoID] = append(v, arr[i])
-	}
-
-	return m, nil
-}
-
-func (s *aidService) GetHelpImagesByHelpInfoIDsAsync(helpInfoIDs []int64) func() (map[int64][]*entities.HelpImage, error) {
-	resultChan := make(chan interface{}, 1)
-
-	utils.Go(func() {
-		defer close(resultChan)
-		res, err := s.GetHelpImagesByHelpInfoIDs(helpInfoIDs)
-		if err == nil {
-			resultChan <- res
-		} else {
-			resultChan <- err
-		}
-	})
-
-	return func() (map[int64][]*entities.HelpImage, error) {
-		res := <-resultChan
-		switch res.(type) {
-		case map[int64][]*entities.HelpImage:
-			return res.(map[int64][]*entities.HelpImage), nil
-		case error:
-			return nil, res.(error)
-		default:
-			return nil, errors.New("invalid type from chan")
-		}
-	}
-}
-
-func FromImageDTO(helpInfoID int64, image string) *entities.HelpImage {
-	return &entities.HelpImage{
-		HelpInfoID: helpInfoID,
-		Origin:     image,
-	}
-}
-
-func FromImageDTOs(helpInfoID int64, arr []string) []*entities.HelpImage {
-	list := make([]*entities.HelpImage, len(arr))
-
-	for i := range arr {
-		list[i] = FromImageDTO(helpInfoID, arr[i])
-	}
-
-	return list
 }
 
 func (s *aidService) GetHelpInfoByID(id int64) (*entities.HelpInfo, bool, error) {
@@ -422,12 +433,19 @@ func (s aidService) FillHelpInfoSimpleDTO(model *entities.HelpInfo, dto *entitie
 	if model != nil {
 		dto.ID = model.ID
 		dto.Exercise = model.Exercise
+		dto.Practice = model.Practice
+		dto.NpcId = model.NpcId
 		dto.Longitude = model.Longitude
 		dto.Latitude = model.Latitude
 		dto.Address = model.Address
 		dto.DetailAddress = model.DetailAddress
+		dto.Images = model.Images
 		dto.PublishTime = model.PublishTime.Format("2006-01-02 15:04:05")
 		u, err := s.UserService.GetUserByID(model.Publisher)
+
+		if dto.Images == nil {
+			dto.Images = make([]string, 0)
+		}
 
 		if err == nil && u != nil {
 			dto.PublisherName = u.Nickname

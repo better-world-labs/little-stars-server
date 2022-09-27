@@ -1,6 +1,9 @@
 package entities
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type UserConfigDO struct {
 	UserId    int64
@@ -10,10 +13,20 @@ type UserConfigDO struct {
 	UpdatedAt time.Time
 }
 
-type UserConfigDOV2 struct {
+type UserConfig struct {
 	UserId    int64
 	Key       string
 	Value     map[string]interface{}
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+func (c UserConfig) ParseValue(dst interface{}) error {
+	value := c.Value["value"]
+	b, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(b, dst)
 }

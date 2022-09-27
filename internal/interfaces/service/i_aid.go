@@ -14,13 +14,17 @@ type AidService interface {
 	// @return error 错误
 	PublishHelpInfo(accountID int64, dto *entities.PublishDTO) (int64, []*entities.DealPointsEventRst, error)
 
+	GetHelpInfoByID(id int64) (*entities.HelpInfo, bool, error)
+
+	PublishHelpInfoExercise(userId int64, dto *entities.PublishDTO) (id int64, npc *entities.SimpleUser, err error)
+
 	// ListHelpInfosPaged 分页读取求助信息列表
 	// @param pageQuery 分页参数
 	// @param position 当前经纬度坐标
 	// @param condition 查询条件
 	// @return page.Result 分页数据结果
 	// @return error 错误
-	ListHelpInfosPaged(pageQuery *page.Query, position *location.Coordinate, condition *entities.HelpInfo) (*page.Result, error)
+	ListHelpInfosPaged(pageQuery *page.Query, position *location.Coordinate, condition *entities.HelpInfo) (*page.Result[*entities.HelpInfoComposedDTO], error)
 
 	// ListOneHoursInfos 查询一小时内的求助信息
 	ListOneHoursInfos() ([]*entities.HelpInfo, error)
@@ -29,29 +33,22 @@ type AidService interface {
 	// @param pageQuery 分页参数
 	// @return page.Result 分页数据结果
 	// @return error 错误
-	ListHelpInfosParticipatedPaged(pageQuery *page.Query, userID int64) (*page.Result, error)
+	ListHelpInfosParticipatedPaged(pageQuery *page.Query, userID int64) (*page.Result[*entities.HelpInfoComposedDTO], error)
+
+	CountHelpInfosAboutMe(userId int64) (int64, error)
 
 	// ListHelpInfosInner24h 查询24h内的求助信息
 	// @return []*HelpInfo 分页数据结果
 	// @return error 错误
 	ListHelpInfosInner24h() ([]*entities.HelpInfo, error)
 
-	// GetHelpImagesByHelpInfoIDs 读取多个求助信息的图片
-	// @param helpInfoIDs 求助信息 ID
-	// @return 数据 Map
-	// @return error 错误
-	GetHelpImagesByHelpInfoIDs(helpInfoIDs []int64) (map[int64][]*entities.HelpImage, error)
-
-	// GetHelpImagesByHelpInfoIDsAsync 读取多个求助信息的图片异步版
-	// @param helpInfoIDs 求助信息 ID
-	// @return 数据 Map
-	// @return func 结果闭包
-	GetHelpImagesByHelpInfoIDsAsync(helpInfoIDs []int64) func() (map[int64][]*entities.HelpImage, error)
 	// ActionArrived 到达现场行为触发
 	// @param accountID 帐号 ID
 	// @param aidID 求助信息 ID
 	// @return 错误
 	ActionArrived(accountID int64, aidID int64, coordinate *location.Coordinate) ([]*entities.DealPointsEventRst, error)
+
+	ActionNPCArrived(aidId int64) error
 
 	// ActionCalled 触发电话联系现场行为
 	// @param accountID 帐号 ID

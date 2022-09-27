@@ -33,30 +33,24 @@ func (p *GamePersistenceImpl) ListByIds(ids []int64) (games []*entities.Game, er
 }
 
 func (p *GamePersistenceImpl) Create(game *entities.Game) error {
-	err := db.Transaction(func(session *xorm.Session) error {
+	return db.Transaction(func(session *xorm.Session) error {
 		_, err := session.Insert(game)
 		return err
 	})
-
-	return err
 }
 
 func (p *GamePersistenceImpl) Update(game *entities.Game) error {
-	err := db.Transaction(func(session *xorm.Session) error {
+	return db.Transaction(func(session *xorm.Session) error {
 		_, err := session.ID(game.Id).UseBool("settled").Update(game)
 		return err
 	})
-
-	return err
 }
 
 func (p *GamePersistenceImpl) Delete(id int64) error {
-	err := db.Transaction(func(session *xorm.Session) error {
+	return db.Transaction(func(session *xorm.Session) error {
 		_, err := session.Where("id = ?", id).Delete(&entities.Game{})
 		return err
 	})
-
-	return err
 }
 
 func (p *GamePersistenceImpl) tableSession() *xorm.Session {

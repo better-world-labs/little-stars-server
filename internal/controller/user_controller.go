@@ -5,9 +5,11 @@ import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg"
-	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/location"
+	page "aed-api-server/internal/pkg/query"
 	"aed-api-server/internal/pkg/response"
+	"aed-api-server/internal/pkg/utils"
+	"aed-api-server/internal/server/config"
 	"aed-api-server/internal/service/user"
 	"crypto/md5"
 	"encoding/json"
@@ -39,10 +41,17 @@ func (con *UserController) MountAuthRouter(r *route.Router) {
 	r.GET("/user/info", con.GetUserInfo)
 	r.GET("/user/infos", con.GetUserInfos)
 	r.POST("/user/check-token", con.CheckUserToken)
+	r.GET("/user/id", con.GetUserId)
 	r.POST("/user/events", con.DealReportedEvents)
 	r.GET("/user/charity-card", con.GetUserCharityCard)
+	r.GET("/user/stat", con.GetUserStat)
 	r.POST("/user/message-subscribe", con.ReportSubscribeMessageSettings)
 	r.GET("/user/message-subscribe/last", con.GetLastReportSubscribeMessageSettings)
+}
+
+func (con *UserController) MountAdminRouter(r *route.Router) {
+	r.POST("/user/update-avatar", con.UpdateAvatar)
+	r.GET("/users", con.ListUsers)
 }
 
 func (con *UserController) MountNoAuthRouter(r *route.Router) {
@@ -259,7 +268,20 @@ func (con *UserController) GetUserInfos(c *gin.Context) (interface{}, error) {
 }
 
 func (con *UserController) CheckUserToken(c *gin.Context) (interface{}, error) {
-	return nil, nil
+	userId := utils.GetContextUserId(c)
+	u, err := con.User.GetUserInfo(userId)
+	if err != nil || u == nil || u.SessionKey == "" {
+		return nil, response.ErrorInvalidToken
+	}
+
+	return map[string]interface{}{
+		"userId": c.MustGet(pkg.AccountIDKey),
+	}, nil
+}
+func (con *UserController) GetUserId(c *gin.Context) (interface{}, error) {
+	return map[string]interface{}{
+		"userId": c.MustGet(pkg.AccountIDKey),
+	}, nil
 }
 
 func (con *UserController) Login(context *gin.Context) (interface{}, error) {
@@ -400,4 +422,40 @@ func (con *UserController) GetLastReportSubscribeMessageSettings(c *gin.Context)
 		"templates":     templates,
 		"subscriptions": subscriptionsSetting,
 	}, nil
+}
+
+func (con *UserController) GetUserStat(ctx *gin.Context) (interface{}, error) {
+	userId := utils.GetContextUserId(ctx)
+	stat, err := con.User.GetUserAboutStat(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	return stat, nil
+}
+
+func (con *UserController) UpdateAvatar(ctx *gin.Context) (interface{}, error) {
+	count, err := con.Service.UpdateUsersAvatar()
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"updated": count,
+	}, nil
+}
+
+func (con *UserController) ListUsers(ctx *gin.Context) (interface{}, error) {
+	p, err := page.BindPageQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	keyword := ctx.Query("keyword")
+	users, err := con.User.PageUsers(*p, keyword)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }

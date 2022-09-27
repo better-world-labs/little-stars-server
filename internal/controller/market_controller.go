@@ -27,7 +27,16 @@ func (c MarketController) ListCommoditiesAdmin(ctx *gin.Context) (interface{}, e
 }
 
 func (c MarketController) ListReleasedCommodities(ctx *gin.Context) (interface{}, error) {
-	commodities, err := interfaces.S.Market.ListCommoditiesByStatus(entities.CommodityStatusReleased)
+	var param = struct {
+		Size int `form:"size"`
+	}{}
+
+	err := ctx.ShouldBindQuery(&param)
+	if err != nil {
+		return nil, err
+	}
+
+	commodities, err := interfaces.S.Market.ListCommoditiesByStatus(param.Size, entities.CommodityStatusReleased)
 	if err != nil {
 		return nil, err
 	}

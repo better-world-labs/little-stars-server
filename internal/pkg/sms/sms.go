@@ -48,6 +48,7 @@ func SendSms(mobile string, templateCode string, data map[string]string) error {
 			return base.NewError(Module, "request overflow")
 		}
 
+		log.Errorf("send sms error: %s", response.Message)
 		return base.NewError(Module, response.Message)
 	}
 

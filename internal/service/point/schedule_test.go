@@ -4,11 +4,10 @@ import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
-	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/db"
 	conf "aed-api-server/internal/pkg/domain/config"
 	"aed-api-server/internal/pkg/domain/emitter"
-	"context"
+	"aed-api-server/internal/server/config"
 	"github.com/stretchr/testify/assert"
 	"gitlab.openviewtech.com/openview-pub/gopkg/log"
 	"testing"
@@ -50,8 +49,7 @@ func TestDealPointsEvent(t *testing.T) {
 
 func TestEmitter(t *testing.T) {
 	t.Cleanup(initMiddlewares())
-	emitter.SetContext(context.Background())
-	emitter.SetConfig(&conf.DomainEventConfig{
+	emitter.SetKafkaDirectly(&conf.KafkaConfig{
 		Server:          "kafka-star-dev.openviewtech.com:9092",
 		Topic:           "test-domain-event",
 		GroupId:         "star-service",

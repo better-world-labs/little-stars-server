@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"aed-api-server/internal/pkg"
-	"aed-api-server/internal/pkg/utils"
 	"aed-api-server/internal/service/user"
 	"bytes"
 	"fmt"
@@ -10,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"strings"
-	"time"
 )
 
 type CustomResponseWriter struct {
@@ -29,14 +27,6 @@ func (w CustomResponseWriter) WriteString(s string) (int, error) {
 }
 
 func AccessLog(c *gin.Context) {
-	//健康检查，不记录日志
-	if c.Request.URL.Path == "/api/health-check" {
-		c.Next()
-		return
-	}
-
-	defer utils.TimeStat(c.Request.Method + " " + c.Request.RequestURI)()
-	beginTime := time.Now()
 	remoteIP := c.GetHeader("X-Forwarded-For")
 	if remoteIP == "" {
 		ip, _ := c.RemoteIP()
@@ -48,7 +38,7 @@ func AccessLog(c *gin.Context) {
 		log.Error("AccessLog - cloneRequestBody error:", err)
 	}
 
-	log.Infof("request| userId=%s %s %s %s %s %s %s\n",
+	log.Infof("api-request|userId-%s %s %s %s %s %s %s\n",
 		getUserId(c),
 		remoteIP,
 		c.Request.Method,
@@ -64,9 +54,9 @@ func AccessLog(c *gin.Context) {
 
 	contentType := c.Writer.Header().Get("Content-Type")
 	if strings.Contains(contentType, "json") {
-		log.Infof("%v|response| %v %s\n", time.Now().Sub(beginTime), c.Writer.Status(), blw.body.String())
+		log.Infof("api-response|%v %s\n", c.Writer.Status(), blw.body.String())
 	} else {
-		log.Infof("%v|response| %v %s\n", time.Now().Sub(beginTime), c.Writer.Status(), contentType)
+		log.Infof("api-response|%v %s\n", c.Writer.Status(), contentType)
 	}
 }
 

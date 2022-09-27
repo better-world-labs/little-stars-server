@@ -18,8 +18,7 @@ type GameImpl struct {
 	persistence       IGamePersistence
 	playerPersistence IPlayerPersistence
 
-	User   service.UserService `inject:"-"`
-	Wechat service.IWechat     `inject:"-"`
+	User service.UserService `inject:"-"`
 }
 
 //go:inject-component
@@ -166,32 +165,38 @@ func (g *GameImpl) AwardSteps(gameId int64, userId int64, walks int) error {
 	return err
 }
 
-func (g *GameImpl) UpdateWechatSteps(gameId int64, userId int64, req *entities.WechatDataDecryptReq) (bool, error) {
-	walks, err := g.Wechat.GetWalks(req)
+func (g *GameImpl) UpdateWechatSteps(gameId int64, userId int64, req *entities.WechatDataDecryptReq) (int, error) {
+	walks, err := g.User.GetWalks(req)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 
 	process, err := g.GetGameProcess(gameId, userId)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 
 	before := *process
 	err = process.ProcessStep(walks)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 
 	err = g.CompareAndSetProcess(before, process)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 
-	return before.StepProcess() != process.StepProcess(), nil
+	update := process.StepProcess() - before.StepProcess()
+	if update < 0 {
+		update = 0
+	}
+
+	return update, nil
 }
 
 func (g *GameImpl) CompareAndSetProcess(excepted domains.GameProcess, process *domains.GameProcess) error {
+	process.UpdatedAt = global.FormattedTime(time.Now())
 	updated, err := g.playerPersistence.CompareAndSet(excepted.GameProcess, &process.GameProcess)
 	if err != nil {
 		return err
@@ -289,8 +294,8 @@ func (g *GameImpl) GetGameStat(gameId, userId int64) (*entities.GameStat, error)
 	game := res[2].(*domains.Game)
 
 	return &entities.GameStat{
-		UserTotal:      len(rankIds),
-		UserCompleted:  int(completedCount),
+		UsersTotal:     len(rankIds),
+		UsersCompleted: int(completedCount),
 		CaculatePoints: caculateGamePoints(int(completedCount), game.Points),
 		RankPercent:    caculateUserRankPercents(userId, rankIds),
 	}, nil

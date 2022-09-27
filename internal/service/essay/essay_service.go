@@ -36,6 +36,14 @@ func (s *Service) List() (slice []*entities.Essay, err error) {
 	return
 }
 
+func (s *Service) ListLimit(limit int) (slice []*entities.Essay, err error) {
+	err = db.Table("essay").
+		Asc("sort").
+		Limit(limit, 0).
+		Find(&slice)
+	return
+}
+
 func (s *Service) GetById(id int64) (*entities.Essay, error) {
 	var essay entities.Essay
 	_, err := db.Table("essay").Where("id = ?", id).Get(&essay)

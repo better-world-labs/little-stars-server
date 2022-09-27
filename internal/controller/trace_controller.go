@@ -32,6 +32,10 @@ func (t TraceController) MountNoAuthRouter(r *route.Router) {
 	g.POST("/normal", t.Create)
 }
 
+func (t TraceController) MountAdminRouter(r *route.Router) {
+	r.POST("/traces/qr-codes", t.genQrCode)
+}
+
 func (t TraceController) Create(ctx *gin.Context) (interface{}, error) {
 	param := Dto{}
 	err := ctx.ShouldBindJSON(&param)
@@ -53,4 +57,12 @@ func (t TraceController) Create(ctx *gin.Context) (interface{}, error) {
 	}
 
 	return trace, nil
+}
+
+func (t TraceController) genQrCode(context *gin.Context) (interface{}, error) {
+	var req entities.CreateQrCodeReq
+	if err := context.BindJSON(&req); err != nil {
+		return nil, err
+	}
+	return t.Service.CreateQrCode(&req)
 }

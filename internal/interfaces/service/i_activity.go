@@ -114,6 +114,9 @@ type ActivityService interface {
 	// SaveActivityDeviceGot 保存已获取设备动态
 	SaveActivityDeviceGot(event *events.DeviceGotEvent) ([]*entities.DealPointsEventRst, error)
 
+	// SaveActivityNPCDeviceGot 保存已获取设备动态(NPC)
+	SaveActivityNPCDeviceGot(event *events.DeviceGotEvent) error
+
 	// SaveActivityGoingToScene 保存正在前往现场动态
 	SaveActivityGoingToScene(event *events.GoingToSceneEvent) error
 

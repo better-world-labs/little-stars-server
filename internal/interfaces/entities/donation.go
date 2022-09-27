@@ -2,6 +2,7 @@ package entities
 
 import (
 	"aed-api-server/internal/pkg/response"
+	"encoding/json"
 	"time"
 )
 
@@ -31,26 +32,41 @@ type (
 		DonationCount int
 	}
 
+	UserDonationPoints struct {
+		UserId int64
+		Points int
+	}
+
+	CrowdfundingSetting struct {
+		AppId     string                 `json:"appId"`
+		Path      string                 `json:"path"`
+		ExtraData map[string]interface{} `json:"extraData"`
+	}
+
 	Donation struct {
-		Id             int64      `xorm:"id pk autoincr" json:"id"`
-		Title          string     `xorm:"title" json:"title"`
-		Images         []string   `xorm:"images" json:"images"`
-		Description    string     `xorm:"description" json:"description"`
-		TargetPoints   int        `xorm:"target_points" json:"targetPoints"`
-		ActualPoints   int        `xorm:"actual_points" json:"actualPoints"`
-		StartAt        time.Time  `xorm:"start_at" json:"-"`
-		CompleteAt     *time.Time `xorm:"complete_at" json:"-"`
-		ExpiredAt      time.Time  `xorm:"expired_at" json:"-"`
-		Status         int        `xorm:"-" json:"status"`
-		ArticleId      int64      `xorm:"article_id" json:"articleId"`
-		Executor       string     `xorm:"executor" json:"executor"`
-		ExecutorNumber string     `xorm:"executor_number" json:"executorNumber"`
-		Feedback       string     `xorm:"feedback" json:"feedback"`
-		Plan           string     `xorm:"plan" json:"plan"`
-		PlanImage      string     `xorm:"plan_image" json:"planImage"`
-		Budget         string     `xorm:"budget" json:"budget"`
-		CreatedAt      time.Time  `xorm:"created_at" json:"createdAt"`
-		RecordsCount   *int       `xorm:"-" json:"recordsCount,omitempty"`
+		Id                         int64                `xorm:"id pk autoincr" json:"id"`
+		Title                      string               `xorm:"title" json:"title"`
+		Images                     []string             `xorm:"images" json:"images"`
+		Description                string               `xorm:"description" json:"description"`
+		TargetPoints               int                  `xorm:"target_points" json:"targetPoints"`
+		ActualPoints               int                  `xorm:"actual_points" json:"actualPoints"`
+		StartAt                    time.Time            `xorm:"start_at" json:"-"`
+		CompleteAt                 *time.Time           `xorm:"complete_at" json:"-"`
+		ExpiredAt                  time.Time            `xorm:"expired_at" json:"-"`
+		Status                     int                  `xorm:"-" json:"status"`
+		ArticleId                  int64                `xorm:"article_id" json:"articleId"`
+		Executor                   string               `xorm:"executor" json:"executor"`
+		ExecutorNumber             string               `xorm:"executor_number" json:"executorNumber"`
+		Feedback                   string               `xorm:"feedback" json:"feedback"`
+		Plan                       string               `xorm:"plan" json:"plan"`
+		PlanImage                  string               `xorm:"plan_image" json:"planImage"`
+		Budget                     string               `xorm:"budget" json:"budget"`
+		CreatedAt                  time.Time            `xorm:"created_at" json:"createdAt"`
+		RecordsCount               *int                 `xorm:"-" json:"recordsCount,omitempty"`
+		Crowdfunding               bool                 `json:"crowdfunding"`
+		TargetCrowdfunding         float32              `json:"targetCrowdfunding"`
+		ActualCrowdfunding         float32              `json:"actualCrowdfunding"`
+		CrowdfundingForwardSetting *CrowdfundingSetting `xorm:"crowdfunding_forward_setting" json:"crowdfundingForwardSetting,omitempty"`
 	}
 
 	DonationHonor struct {
@@ -161,10 +177,25 @@ func (d *Donation) GetProcessPercents() float32 {
 	return float32(d.ActualPoints) / float32(d.TargetPoints) * 100
 }
 
+func (d *Donation) GetCrowdfundingProcessPercents() float32 {
+	if d.TargetCrowdfunding == 0 {
+		return 0
+	}
+	return d.ActualCrowdfunding / d.TargetCrowdfunding * 100
+}
+
 func min(a int, b int) int {
 	if a < b {
 		return a
 	}
 
 	return b
+}
+
+func (e *CrowdfundingSetting) FromDB(b []byte) error {
+	return json.Unmarshal(b, e)
+}
+
+func (e *CrowdfundingSetting) ToDB() ([]byte, error) {
+	return json.Marshal(e)
 }

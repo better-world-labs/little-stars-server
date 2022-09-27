@@ -1,21 +1,22 @@
 package async
 
-type Future struct {
+type Future[T any] struct {
 	resultChan chan interface{}
-	result     interface{}
+	result     T
 	err        error
 	completed  bool
 }
 
-func newFuture() *Future {
-	future := Future{
+func newFuture[T any]() *Future[T] {
+	future := Future[T]{
 		resultChan: make(chan interface{}, 1),
 	}
 
 	return &future
 }
 
-func (f *Future) Get(binder interface{}) error {
+func (f *Future[T]) Get() (T, error) {
+	var t T
 	if !f.completed {
 		res := <-f.resultChan
 		switch res.(type) {
@@ -23,15 +24,16 @@ func (f *Future) Get(binder interface{}) error {
 			f.err = res.(error)
 
 		default:
-			f.result = res
+			if assert, ok := res.(T); ok {
+				f.result = assert
+			} else {
+				//TODO 想办法处理下，不能报错
+				f.result = t
+			}
 		}
+
 		f.completed = true
 	}
 
-	if f.err != nil {
-		return f.err
-	}
-
-	binder = f.result
-	return nil
+	return t, f.err
 }

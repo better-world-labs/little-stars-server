@@ -8,6 +8,29 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func dealUserEnterCommunity(userId int64) {
+	var isSet bool
+	err := interfaces.S.UserConfig.GetConfigToValue(userId, entities.UserConfigKeyFirstEnterCommunity, &isSet)
+	if err != nil {
+		log.Info("dealUserEnterAEDMap error", err)
+		return
+	}
+
+	if !isSet {
+		updated, err := interfaces.S.UserConfig.PutValueToConfig(userId, entities.UserConfigKeyFirstEnterCommunity, true)
+		if updated && err == nil {
+			err = emitter.Emit(&events.PointsEvent{
+				PointsEventType: entities.PointsEventTypeFirstEnterCommunity,
+				UserId:          userId,
+				Params: entities.PointsEventParams{
+					RefTable:   "user_config#" + entities.UserConfigKeyFirstEnterCommunity,
+					RefTableId: userId,
+				},
+			})
+		}
+	}
+}
+
 func dealUserEnterAEDMap(userId int64) {
 	var isSet bool
 	err := interfaces.S.UserConfig.GetConfigToValue(userId, entities.UserConfigKeyFirstEnterAEDMap, &isSet)

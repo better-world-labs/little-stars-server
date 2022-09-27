@@ -33,6 +33,29 @@ type Service struct {
 	ClockInRangeCheck bool `conf:"clock-in-range-check"`
 }
 
+func (Service) BatchGetDeviceClockInUserIds(deviceIds []string) (map[string][]int64, error) {
+	result := make(map[string][]int64)
+
+	var row []struct {
+		DeviceId  string
+		CreatedBy int64
+	}
+
+	err := db.Table(clockInTableName).Distinct("device_id", "created_by").
+		Cols("device_id", "created_by").
+		In("device_id", deviceIds).Find(&row)
+
+	for _, r := range row {
+		if v, ok := result[r.DeviceId]; ok {
+			result[r.DeviceId] = append(v, r.CreatedBy)
+		} else {
+			result[r.DeviceId] = []int64{r.CreatedBy}
+		}
+	}
+
+	return result, err
+}
+
 func (Service) GetDeviceClockInUserIds(deviceId string) ([]int64, error) {
 	var userIds []int64
 

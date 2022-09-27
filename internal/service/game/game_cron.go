@@ -65,7 +65,7 @@ func (g *GameImpl) ProgramNotifyWithoutPoints(userId int64) error {
 		"thing2": map[string]interface{}{
 			"value": "请到首页及时收集积分，过期失效~",
 		},
-	})
+	}, "")
 
 	return err
 
@@ -83,7 +83,7 @@ func (g *GameImpl) ProgramNotifyWithPoints(userId int64, points int) error {
 		"thing2": map[string]interface{}{
 			"value": "请到首页及时收集积分，过期失效~",
 		},
-	})
+	}, "")
 
 	return err
 

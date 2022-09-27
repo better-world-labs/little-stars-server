@@ -31,7 +31,7 @@ func (q *testedQuestionGenerator) Generate(projectID int64, userID int64, examTy
 }
 
 func (q *testedQuestionGenerator) DoGenerateForMock(questions []*domains2.Question, userID int64, projectID int64) ([]*domains2.Question, error) {
-	set := utils.NewInt64Set()
+	set := utils.NewSet[int64]()
 	set.AddAll([]int64{96, 97, 98, 99, 100, 153, 154, 155})
 
 	var result []*domains2.Question

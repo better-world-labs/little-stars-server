@@ -7,7 +7,7 @@ import (
 
 // ClockInBaseInfo 打卡基本信息
 type ClockInBaseInfo struct {
-	Id int64 `json:"id,string,omitempty" xorm:"id pk autoincr"`
+	Id int64 `json:"id" xorm:"id pk autoincr"`
 
 	DeviceId        string   `json:"deviceId" binding:"required"`
 	IsDeviceExisted bool     `json:"isDeviceExisted"` //设备是否存在

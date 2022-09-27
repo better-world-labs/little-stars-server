@@ -39,9 +39,16 @@ func (m *marketService) CreateCommodity(commodity entities.Commodity) error {
 	return err
 }
 
-func (m *marketService) ListCommoditiesByStatus(status int) ([]*entities.Commodity, error) {
+func (m *marketService) ListCommoditiesByStatus(size int, status entities.CommodityStatus) ([]*entities.Commodity, error) {
 	var commodities []*entities.Commodity
-	err := db.Table(TableNameCommodity).Where("status = ?", status).Asc("sort").Find(&commodities)
+	query := db.Table(TableNameCommodity).Where("status = ?", status).Asc("sort")
+
+	if size > 0 {
+		query.Limit(size, 0)
+	}
+
+	err := query.
+		Find(&commodities)
 	return commodities, err
 }
 

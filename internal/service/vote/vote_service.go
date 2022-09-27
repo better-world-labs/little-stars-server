@@ -3,6 +3,7 @@ package vote
 import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/service"
+	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/response"
 	"aed-api-server/internal/pkg/utils"
@@ -10,7 +11,9 @@ import (
 	"github.com/go-xorm/xorm"
 )
 
-type voteService struct{}
+type voteService struct {
+	Points service.PointsService `inject:"-"`
+}
 
 //go:inject-component
 func NewVoteService() service.VoteService {
@@ -68,37 +71,68 @@ func (s *voteService) ListVoteOptionsRank(voteId int64) ([]*entities.VoteOption,
 }
 
 func (s *voteService) CountUserRecords(session *xorm.Session, voteId, userId int64) (int64, error) {
-	return session.Table("vote_user_record").Where("vote_id = ? and user_id = ?", voteId, userId).Count()
+	return session.Table("vote_user_record").Where("vote_id = ? and user_id = ? and mode = ?", voteId, userId, entities.VoteRecordModeNormal).Count()
 }
 
-func (s *voteService) DoVote(voteId, userId int64, options []int64) error {
-	set := utils.NewInt64Set()
-	set.AddAll(options)
-	options = set.ToSlice()
-
-	// TODO 排序，防止死锁
-
-	if len(options) == 0 {
-		return errors.New("no options set")
-	}
-
+func (s *voteService) VoteNormal(voteId, userId int64, options []int64) error {
 	vote, exists, err := s.GetVoteById(voteId)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		return errors.New("no vote found")
+		return errors.New("vote not found")
+	}
+
+	options, err = s.checkAndProcessOptions(vote, options)
+	if err != nil {
+		return err
+	}
+
+	return s.doVoteNormal(vote, userId, options)
+}
+
+func (s *voteService) VotePoints(voteId, userId int64, options []int64) error {
+	vote, exists, err := s.GetVoteById(voteId)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return errors.New("vote not found")
+	}
+
+	options, err = s.checkAndProcessOptions(vote, options)
+	if err != nil {
+		return err
+	}
+
+	return s.doVotePoints(voteId, userId, options)
+}
+
+func (s *voteService) checkAndProcessOptions(vote *entities.Vote, options []int64) ([]int64, error) {
+	set := utils.NewSet[int64]()
+	set.AddAll(options)
+	options = set.ToSlice()
+
+	// TODO 排序，防止死锁
+
+	if len(options) == 0 {
+		return nil, errors.New("no options set")
 	}
 
 	if vote.Status() != entities.VoteProjectStatusStarted {
-		return response.ErrorVoteCompleted
+		return nil, response.ErrorVoteCompleted
 	}
 
 	if vote.OptionType == entities.VoteOptionTypeSingle {
-		options = options[:1]
+		return options[:1], nil
 	}
 
+	return options, nil
+}
+
+func (s *voteService) doVoteNormal(vote *entities.Vote, userId int64, options []int64) error {
 	return db.Transaction(func(session *xorm.Session) error {
 		remainTimes, err := s.GetUserRemainTimes(session, vote, userId)
 		if err != nil {
@@ -107,6 +141,29 @@ func (s *voteService) DoVote(voteId, userId int64, options []int64) error {
 
 		if remainTimes < 1 {
 			return response.ErrorNoVoteChance
+		}
+
+		for _, o := range options {
+			err = s.vote(session, vote.Id, o)
+			if err != nil {
+				return err
+			}
+		}
+
+		return s.SaveUserRecord(session, &entities.VoteRecord{
+			UserId:    userId,
+			VoteId:    vote.Id,
+			OptionIds: options,
+			Mode:      entities.VoteRecordModeNormal,
+		})
+	})
+}
+
+func (s *voteService) doVotePoints(voteId, userId int64, options []int64) error {
+	return db.Transaction(func(session *xorm.Session) error {
+		err := s.Points.Pay(userId, pkg.VoteCostPoints, pkg.VoteCostPointsDescription)
+		if err != nil {
+			return err
 		}
 
 		for _, o := range options {
@@ -120,6 +177,7 @@ func (s *voteService) DoVote(voteId, userId int64, options []int64) error {
 			UserId:    userId,
 			VoteId:    voteId,
 			OptionIds: options,
+			Mode:      entities.VoteRecordModePoints,
 		})
 	})
 }

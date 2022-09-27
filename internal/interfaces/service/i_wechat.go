@@ -1,13 +1,16 @@
 package service
 
-import "aed-api-server/internal/interfaces/entities"
+import (
+	"aed-api-server/internal/interfaces/entities"
+	"io"
+)
 
 type IWechat interface {
 	// GetMinaToken 获取小程序的accessToken
 	GetMinaToken() (string, error)
 
 	// SendSubscribeMsg 发送订阅消息
-	SendSubscribeMsg(msgKey entities.SubscribeMessageKey, openId, templateId, templateEl string, params interface{}) (*entities.WechatRst, error)
+	SendSubscribeMsg(openId, templateId, page string, params interface{}) (*entities.WechatRst, error)
 
 	// CodeToSession 授权码换取 SessionKey
 	CodeToSession(code string) (*entities.WechatCode2SessionRes, error)
@@ -15,9 +18,12 @@ type IWechat interface {
 	// MiniProgramCode2Session  小程序登陆换取 SessionKey
 	MiniProgramCode2Session(code string, encryptPhone string, iv string, data *entities.WechatMiniProgramRes) error
 
-	// Decrypt 解密数据
-	Decrypt(encryptedData, iv, sessionKey string, dst interface{}) error
+	// GetUserEncryptKey 读取用户最近三个的密钥
+	GetUserEncryptKey(openid, sessionKey string) ([]*entities.WechatEncryptKey, error)
 
-	// GetWalks  读取近一个月月的步数
-	GetWalks(req *entities.WechatDataDecryptReq) (*entities.WechatWalkData, error)
+	// GenericUrlLink 获取小程序链接
+	GenericUrlLink(path, query string) (string, error)
+
+	//GenMinaCode 生成小程序码
+	GenMinaCode(path string, width int, autoColor, isHyaline bool, lineColor string) (reader io.ReadCloser, contentType string, err error)
 }

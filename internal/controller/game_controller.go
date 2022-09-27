@@ -95,13 +95,14 @@ func (g *Game) UpdateStep(ctx *gin.Context) (interface{}, error) {
 		return nil, response.NewIllegalArgumentError("invalid path param id")
 	}
 
-	updated, err := g.Svc.UpdateWechatSteps(gameId, userId, &req)
+	update, err := g.Svc.UpdateWechatSteps(gameId, userId, &req)
 	if err != nil {
 		logrus.Errorf("UpdateWechatSteps error: %v", err)
 	}
 
 	return map[string]interface{}{
-		"updated": updated,
+		"updated": update > 0,
+		"update":  update,
 	}, nil
 }
 

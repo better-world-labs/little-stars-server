@@ -17,3 +17,8 @@ const (
 	UserPointsMaxTimesSceneArrived        = 2
 	UserPointsMaxTimesInvite              = 10
 )
+
+const (
+	VoteCostPoints            = 200 //投票积分花费
+	VoteCostPointsDescription = "兑换投票特权"
+)

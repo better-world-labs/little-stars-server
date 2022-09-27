@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (t *Task) Listen(on facility.OnEvent) {
+func (t *Service) Listen(on facility.OnEvent) {
 	//监听用户事件，匹配到浏览文章和浏览视频，触发积分事件
 	on(&events.UserEvent{}, func(event emitter.DomainEvent) error {
 		userEvent, ok := event.(*events.UserEvent)

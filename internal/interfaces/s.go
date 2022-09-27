@@ -13,6 +13,7 @@ type ServiceKeeper struct {
 	Course          service.CourseService           `inject:"-"`
 	Exam            service.ExamService             `inject:"-"`
 	UserConfig      service.UserConfigService       `inject:"-"`
+	UserConfigV2    service.IUserConfigV2           `inject:"-"`
 	User            service.UserService             `inject:"-"`
 	UserOld         service.UserServiceOld          `inject:"-"`
 	ClockIn         service.ClockInService          `inject:"-"`

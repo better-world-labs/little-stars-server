@@ -1,16 +1,20 @@
 package exam
 
 import (
-	"aed-api-server/internal/pkg/db"
+	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 func TestImortQuestions(t *testing.T) {
-	db.InitEngine(db.MysqlConfig{
-		DriverName: "mysql",
-		Dsn:        "db_account_star_dev:db_account_star_dev123@tcp(rm-bp11mfhb2120j3s801o.mysql.rds.aliyuncs.com:3306)/star_dev?charset=utf8mb4&loc=Local",
-	})
+	//db.InitEngine(db.MysqlConfig{
+	//	DriverName: "mysql",
+	//	Dsn:        "db_account_star_dev:db_account_star_dev123@tcp(rm-bp11mfhb2120j3s801o.mysql.rds.aliyuncs.com:3306)/star_dev?charset=utf8mb4&loc=Local",
+	//})
 
+	var v interface{}
+	err := json.Unmarshal([]byte("2"), &v)
+	require.Nil(t, err)
 	//service := NewQuestionService()
 
 	// 题库文件丢了，下次导入的时候再说

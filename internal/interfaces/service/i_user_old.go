@@ -23,6 +23,10 @@ type UserServiceOld interface {
 	// @return func (map[用户ID]经纬度坐标, 错误)
 	ListAllPositions() ([]*entities.Position, error)
 
+	ListUsers() (r map[int64]*entities.User, err error)
+
+	UpdateUsersAvatar() (count int, err error)
+
 	// ListUserByIDs 读取多个账号信息
 	// @param ids 用户 ID 集合
 	// @return (map[用户ID]经纬度坐标, 错误)

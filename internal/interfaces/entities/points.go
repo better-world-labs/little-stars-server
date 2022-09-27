@@ -5,6 +5,15 @@ import (
 	"time"
 )
 
+const (
+	FlowDirectionIn  FlowDirection = "in"
+	FlowDirectionOut FlowDirection = "out"
+)
+
+type (
+	FlowDirection string
+)
+
 type PointAddRst struct {
 	Point       int    `json:"point"`
 	Description string `json:"description"`
@@ -20,6 +29,24 @@ type UserPointsFlow struct {
 	Name      string               `json:"name" xorm:"name"`            //积分名称
 	Points    int                  `json:"points" xorm:"points"`        //积分数值
 	ExpiredAt global.FormattedTime `json:"expiredAt" xorm:"expired_at"` //过期时间
+}
+
+type AwardFlowQueryCommand struct {
+	UserId    int64  `form:"userId"`
+	Keyword   string `form:"keyword"`
+	Direction string `form:"direction"`
+}
+
+type AwardPointFlow struct {
+	Id            int64         `json:"id"` //积分流水ID
+	UserId        int64         `json:"-"`
+	Points        int           `json:"points"` //积分数值
+	Direction     FlowDirection `json:"direction"`
+	Description   string        `json:"description"`
+	PeckExpiredAt time.Time     `json:"peckExpiredAt"` //过期时间
+	CreatedAt     time.Time     `json:"createdAt"`     //创建时间
+	PeckedAt      *time.Time    `json:"peckedAt"`      //创建时间
+	Status        int           `json:"status"`
 }
 
 type UserPointsRecord struct {

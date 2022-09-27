@@ -6,11 +6,10 @@ import (
 	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg/cache"
-	"aed-api-server/internal/pkg/crypto"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/domain/emitter"
-	"aed-api-server/internal/pkg/response"
 	"aed-api-server/internal/pkg/utils"
+	"aed-api-server/internal/pkg/wx_crypto"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,11 +28,29 @@ const CacheName = "user"
 type userServiceOld struct {
 	Wechat        service.IWechat              `inject:"-"`
 	TreasureChest service.TreasureChestService `inject:"-"`
+	Oss           service.OssService           `inject:"-"`
 }
 
 //go:inject-component
 func NewUserServiceOld() service.UserServiceOld {
 	return &userServiceOld{}
+}
+
+func (s *userServiceOld) uploadAvatar(userId int64, originAvatar string) (string, error) {
+	resp, err := http.Get(originAvatar)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != 200 {
+		return "", errors.New(resp.Status)
+	}
+
+	url, err := s.Oss.Upload(fmt.Sprintf("avatar/%d.png", userId), resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return url, nil
 }
 
 func (s *userServiceOld) WechatMiniProgramLogin(command entities.LoginCommand) (*entities.User, string, string, error) {
@@ -43,14 +60,20 @@ func (s *userServiceOld) WechatMiniProgramLogin(command entities.LoginCommand) (
 		return nil, "", "", err
 	}
 	account := entities.User{
-		Nickname: command.Nickname,
-		Avatar:   command.Avatar,
-		Mobile:   info.DecryptedPhone,
-		Unionid:  info.UnionID,
-		Openid:   info.OpenID,
+		Nickname:   command.Nickname,
+		Avatar:     command.Avatar,
+		Mobile:     info.DecryptedPhone,
+		Unionid:    info.UnionID,
+		Openid:     info.OpenID,
+		SessionKey: info.SessionKey,
 	}
 
 	err := s.createOrUpdateUser(&account)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	err = s.updateAvatar(&account)
 	if err != nil {
 		return nil, "", "", err
 	}
@@ -70,13 +93,19 @@ func (s *userServiceOld) WechatMiniProgramLoginV2(command entities.LoginCommandV
 	}
 
 	account := entities.User{
-		Nickname: command.Nickname,
-		Avatar:   command.Avatar,
-		Unionid:  session.UnionId,
-		Openid:   session.Openid,
+		Nickname:   command.Nickname,
+		Avatar:     command.Avatar,
+		Unionid:    session.UnionId,
+		Openid:     session.Openid,
+		SessionKey: session.SessionKey,
 	}
 
 	err = s.createOrUpdateUser(&account)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	err = s.updateAvatar(&account)
 	if err != nil {
 		return nil, "", "", err
 	}
@@ -95,6 +124,16 @@ func (s *userServiceOld) GetUserByOpenId(openid string) (*entities.User, bool, e
 	return &u, exists, err
 }
 
+func (s *userServiceOld) updateAvatar(account *entities.User) error {
+	avatar, err := s.uploadAvatar(account.ID, account.Avatar)
+	if err != nil {
+		return err
+	}
+
+	account.Avatar = avatar
+	return s.createOrUpdateUser(account)
+}
+
 func (s *userServiceOld) createOrUpdateUser(account *entities.User) error {
 	session := db.GetSession()
 	defer session.Close()
@@ -110,7 +149,22 @@ func (s *userServiceOld) createOrUpdateUser(account *entities.User) error {
 		account.Uid = current.Uid
 		log.Info("account_exists: uid=", account.Uid)
 		_, err := session.Table("account").ID(account.ID).Update(account)
-		return err
+		if err != nil {
+			return err
+		}
+
+		if account.Available() && !current.Available() {
+			err = emitter.Emit(&events.FirstLoginEvent{
+				UserId:  account.ID,
+				Openid:  account.Openid,
+				LoginAt: account.Created,
+			})
+			if err != nil {
+				log.Errorf("FirstLoginEvent emit error: %v", err)
+			}
+		}
+
+		return cache.GetManager().Evict(CacheName, getCacheKey(account.ID))
 	} else {
 		account.Created = time.Now()
 		account.Uid = s.generateUid()
@@ -119,12 +173,9 @@ func (s *userServiceOld) createOrUpdateUser(account *entities.User) error {
 			return err
 		}
 
-		return emitter.Emit(&events.FirstLoginEvent{
-			UserId:  account.ID,
-			Openid:  account.Openid,
-			LoginAt: account.Created,
-		})
+		return nil
 	}
+
 }
 
 func (s *userServiceOld) ListAllUser() ([]*entities.User, error) {
@@ -138,6 +189,39 @@ func (s *userServiceOld) ListAllUser() ([]*entities.User, error) {
 	}
 
 	return arr, nil
+}
+
+func (s *userServiceOld) UpdateUsersAvatar() (count int, err error) {
+	users, err := s.ListUsers()
+	if err != nil {
+		return 0, err
+	}
+
+	for _, u := range users {
+		if !strings.HasPrefix(u.Avatar, "https://openview-oss") {
+			err := s.updateAvatar(u)
+			if err != nil {
+				log.Infof("updateAvatoar for user %d error: %v\n", u.ID, err)
+				continue
+			}
+
+			count++
+		}
+	}
+
+	return
+}
+func (s *userServiceOld) ListUsers() (r map[int64]*entities.User, err error) {
+	session := db.GetSession()
+	defer session.Close()
+
+	res := make(map[int64]*entities.User, 0)
+	err = session.Table("account").Find(&res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (s *userServiceOld) ListUserByIDs(ids []int64) (r map[int64]*entities.User, err error) {
@@ -212,8 +296,8 @@ func (s *userServiceOld) UpdateMobile(accountID int64, command entities.MobileCo
 		return err
 	}
 
-	var phone crypto.WxUserPhone
-	err = s.Wechat.Decrypt(command.EncryptPhone, command.Iv, weSession.SessionKey, &phone)
+	var phone wx_crypto.WxUserPhone
+	_, err = wx_crypto.Decrypt(command.EncryptPhone, command.Iv, weSession.SessionKey, &phone)
 	if err != nil {
 		return err
 	}
@@ -233,6 +317,7 @@ func (s *userServiceOld) UpdateMobile(accountID int64, command entities.MobileCo
 		}
 
 		current.Mobile = phone.PhoneNumber
+		current.SessionKey = weSession.SessionKey
 
 		_, err = session.Table("account").ID(current.ID).Update(&current)
 		if err != nil {
@@ -271,7 +356,10 @@ func (s *userServiceOld) UpdateUserInfo(account *entities.User) error {
 			return errors.New("account does not exists")
 		}
 
-		_, err = session.ID(account.ID).Update(account)
+		_, err = session.Table("account").ID(account.ID).Update(account)
+		if err != nil {
+			return err
+		}
 
 		return cache.GetManager().Evict(CacheName, getCacheKey(account.ID))
 	})
@@ -427,7 +515,18 @@ func (s *userServiceOld) WechatMiniProgramLoginSimple(command entities.SimpleLog
 	}
 
 	if !exists {
-		return nil, "", "", response.ErrorUserNotRegister
+		u = &entities.User{
+			Openid:     session.Openid,
+			Unionid:    session.UnionId,
+			SessionKey: session.SessionKey,
+		}
+	} else {
+		u.SessionKey = session.SessionKey
+	}
+
+	err = s.createOrUpdateUser(u)
+	if err != nil {
+		return nil, "", "", err
 	}
 
 	token, err := SignToken(u.ID)

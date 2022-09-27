@@ -6,9 +6,9 @@ import (
 	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg"
+	"aed-api-server/internal/pkg/async"
 	"aed-api-server/internal/pkg/base"
 	"aed-api-server/internal/pkg/db"
-	"aed-api-server/internal/pkg/utils"
 	"aed-api-server/internal/service/aid"
 	"errors"
 	"github.com/go-xorm/xorm"
@@ -17,6 +17,7 @@ import (
 )
 
 type activityService struct {
+	Aid service.AidService `inject:"-"`
 }
 
 const (
@@ -102,29 +103,9 @@ func (s *activityService) ListByAIDs(aids []int64) (map[int64][]*entities.Activi
 }
 
 func (s *activityService) ListMultiLatestCategorySortedAsync(aids []int64, latest int) func() (map[int64][]*entities.Activity, error) {
-	resChan := make(chan interface{}, 1)
-
-	utils.Go(func() {
-		defer close(resChan)
-		res, err := s.ListMultiLatestCategorySorted(aids, latest)
-		if err == nil {
-			resChan <- res
-		} else {
-			resChan <- err
-		}
+	return async.RunAsync(func() (map[int64][]*entities.Activity, error) {
+		return s.ListMultiLatestCategorySorted(aids, latest)
 	})
-
-	return func() (map[int64][]*entities.Activity, error) {
-		res := <-resChan
-		switch res.(type) {
-		case map[int64][]*entities.Activity:
-			return res.(map[int64][]*entities.Activity), nil
-		case error:
-			return nil, res.(error)
-		default:
-			return nil, errors.New("invalid type from chan")
-		}
-	}
 }
 
 func (s *activityService) ListMultiLatestCategorySorted(aids []int64, latest int) (map[int64][]*entities.Activity, error) {
@@ -168,29 +149,9 @@ func (s *activityService) ParseLatestCategorySorted(list []*entities.Activity, l
 }
 
 func (s *activityService) ListLatestCategorySortedAsync(aid int64, latest int) func() ([]*entities.Activity, error) {
-	resultChan := make(chan interface{}, 1)
-
-	utils.Go(func() {
-		defer close(resultChan)
-		res, err := s.ListLatestCategorySorted(aid, latest)
-		if err == nil {
-			resultChan <- res
-		} else {
-			resultChan <- err
-		}
+	return async.RunAsync(func() ([]*entities.Activity, error) {
+		return s.ListLatestCategorySorted(aid, latest)
 	})
-
-	return func() ([]*entities.Activity, error) {
-		res := <-resultChan
-		switch res.(type) {
-		case []*entities.Activity:
-			return res.([]*entities.Activity), nil
-		case error:
-			return nil, res.(error)
-		default:
-			return nil, errors.New("invalid type from chan")
-		}
-	}
 }
 
 func (s *activityService) GetOneByID(id int64) (*entities.Activity, error) {
@@ -296,8 +257,35 @@ func (s *activityService) SaveActivityGoingToScene(event *events.GoingToSceneEve
 	return s.CreateOrUpdateByUUID(CreateActivityGoingToScene(event))
 }
 
+func (s *activityService) SaveActivityNPCDeviceGot(event *events.DeviceGotEvent) error {
+	return db.Begin(func(session *xorm.Session) error {
+		a := CreateActivityDeviceGot(event)
+
+		err := s.CreateWithSession(session, a)
+		if err != nil {
+			log.Errorf("onDeviceGot error: %v", err)
+			return err
+		}
+
+		err = aid.GetService().MarkDeviceGotWithSession(session, event.Aid, event.UserId)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
 func (s *activityService) SaveActivityDeviceGot(event *events.DeviceGotEvent) ([]*entities.DealPointsEventRst, error) {
 	var rst []*entities.DealPointsEventRst
+	helpInfo, exists, err := s.Aid.GetHelpInfoByID(event.Aid)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		return nil, errors.New("help info not found")
+	}
+
 	return rst, db.Begin(func(session *xorm.Session) error {
 		a := CreateActivityDeviceGot(event)
 		isDeviceGot, err := aid.GetService().IsDeviceGot(session, event.Aid, event.UserId)
@@ -326,7 +314,7 @@ func (s *activityService) SaveActivityDeviceGot(event *events.DeviceGotEvent) ([
 			return err
 		}
 
-		if !isDeviceGot && times < pkg.UserPointsMaxTimesGetDevice { //领取过不再加积分
+		if !helpInfo.Exercise && !isDeviceGot && times < pkg.UserPointsMaxTimesGetDevice { //领取过不再加积分
 			eventRst, err := interfaces.S.PointsScheduler.DealPointsEvent(&events.PointsEvent{
 				PointsEventType: entities.PointsEventTypeGotDevice,
 				UserId:          event.UserId,
@@ -414,13 +402,22 @@ func (s *activityService) SaveActivitySceneCalled(event *events.SceneCalledEvent
 func (s *activityService) SaveActivitySceneReport(event *events.SceneReportEvent) ([]*entities.DealPointsEventRst, error) {
 	var rst []*entities.DealPointsEventRst
 
+	helpInfo, exists, err := s.Aid.GetHelpInfoByID(event.Aid)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		return nil, errors.New("not found")
+	}
+
 	times, err := interfaces.S.Points.GetUserPointsEventTimes(event.UserId, entities.PointsEventTypeUploadAidInfo)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Info("SaveActivitySceneReport: user has do ", times, "times")
-	if times < pkg.UserPointsMaxTimesUploadScene {
+	if !helpInfo.Exercise && times < pkg.UserPointsMaxTimesUploadScene {
 		eventRst, err := interfaces.S.PointsScheduler.DealPointsEvent(&events.PointsEvent{
 			PointsEventType: entities.PointsEventTypeUploadAidInfo,
 			UserId:          event.UserId,

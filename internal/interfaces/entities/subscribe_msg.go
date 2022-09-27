@@ -20,4 +20,7 @@ const (
 
 	//SMkGamePoints 游戏通知
 	SMkGamePoints SubscribeMessageKey = "game_points"
+
+	//SMKFeedComment 帖子被评论
+	SMKFeedComment SubscribeMessageKey = "feed_comment"
 )

@@ -64,8 +64,8 @@ type (
 	}
 
 	GameStat struct {
-		UserTotal      int `json:"userTotal"`
-		UserCompleted  int `json:"userCompleted"`
+		UsersTotal     int `json:"usersTotal"`
+		UsersCompleted int `json:"usersCompleted"`
 		CaculatePoints int `json:"caculatePoints"`
 		RankPercent    int `json:"rankPercent"`
 	}

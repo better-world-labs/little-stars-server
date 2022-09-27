@@ -2,7 +2,6 @@ package domains
 
 import (
 	"aed-api-server/internal/interfaces/entities"
-	"aed-api-server/internal/pkg/global"
 	"aed-api-server/internal/pkg/utils"
 	"errors"
 	"math"
@@ -106,7 +105,6 @@ func (e *GameProcess) ProcessStep(data *entities.WechatWalkData) error {
 		}
 	}
 
-	e.UpdatedAt = global.FormattedTime(time.Now())
 	return nil
 }
 
@@ -125,7 +123,6 @@ func (e *GameProcess) UpdateToday(steps int) error {
 		e.Completed = true
 	}
 
-	e.UpdatedAt = global.FormattedTime(time.Now())
 	return nil
 }
 

@@ -30,3 +30,24 @@ func ParseDtos(records []*entities.UserPointsRecord) []*UserPointsRecordDto {
 
 	return dtos
 }
+
+type AwardFlowDto struct {
+	entities.AwardPointFlow
+
+	User *entities.SimpleUser `json:"user"`
+}
+
+func ParseAwardFlowDto(flow *entities.AwardPointFlow, user *entities.SimpleUser) *AwardFlowDto {
+	return &AwardFlowDto{AwardPointFlow: *flow, User: user}
+}
+
+func ParseAwardFlowDtos(flows []*entities.AwardPointFlow, users map[int64]*entities.SimpleUser) []*AwardFlowDto {
+	var res []*AwardFlowDto
+
+	for _, f := range flows {
+		user := users[f.UserId]
+		res = append(res, ParseAwardFlowDto(f, user))
+	}
+
+	return res
+}

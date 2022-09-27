@@ -22,7 +22,7 @@ type IGame interface {
 
 	JoinGame(gameId int64, userId int64) error
 
-	UpdateWechatSteps(gameId int64, userId int64, req *entities.WechatDataDecryptReq) (bool, error)
+	UpdateWechatSteps(gameId int64, userId int64, req *entities.WechatDataDecryptReq) (int, error)
 
 	GetGameProcess(gameId, userId int64) (*domains.GameProcess, error)
 

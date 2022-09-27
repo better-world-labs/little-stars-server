@@ -10,6 +10,8 @@ type (
 
 		List() ([]*entities.Essay, error)
 
+		ListLimit(limit int) ([]*entities.Essay, error)
+
 		GetById(id int64) (essay *entities.Essay, err error)
 
 		Delete(id int64) error

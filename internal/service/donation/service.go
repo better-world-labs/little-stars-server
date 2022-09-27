@@ -132,7 +132,12 @@ func (s *Service) ListUserPointsForDonations(userId int64) (map[int64]int, error
 	return donationPointsMap, err
 }
 
-func (s *Service) ListDonation(p page.Query, userId int64) ([]*entities.Donation, error) {
+func (s *Service) ListDonation() ([]*entities.Donation, error) {
+	var res []*entities.Donation
+	return res, db.Table(TableNameDonation).Desc("created_at").Find(&res)
+}
+
+func (s *Service) ListDonationSorted(p page.Query, userId int64) ([]*entities.Donation, error) {
 	var donations []*entities.Donation
 	var session *xorm.Session
 	if userId > 0 {
@@ -143,12 +148,18 @@ func (s *Service) ListDonation(p page.Query, userId int64) ([]*entities.Donation
 
 		session = db.SQL(fmt.Sprintf(`
 			select
-				a.*
+				a.*,
+                case
+                  when a.start_at < now() and a.expired_at > now() and a.complete_at is null then 0
+                  when a.start_at < now() and a.expired_at > now() and a.complete_at is not null then 1
+                  when a.start_at > now() or a.expired_at < now() then 2
+                end
+                as score
 			from donation as a
 			left join user_position_heat as b
 				on b.hash_id = a.geo_hash_id
 				and b.user_id = ?
-			order by b.heat desc, a.actual_points/a.target_points desc
+			order by b.heat desc,score asc, a.actual_points/a.target_points desc
 			%s
 		`, limitStr), userId)
 	} else {
@@ -398,6 +409,33 @@ func (s *Service) StatDonationByUserId(userId int64) (stat entities.DonationStat
 	`, userId).Get(&stat)
 
 	return stat, err
+}
+
+func (s *Service) StatUsersDonations(userIds []int64) (list []*entities.UserDonationPoints, err error) {
+	err = db.Table("donation_record").
+		Select("user_id, sum(points) as points").
+		In("user_id", userIds).
+		GroupBy("user_id").
+		Find(&list)
+	return list, err
+}
+
+func (s *Service) UpdateCrowdfunding(id int64, actualCrowdfunding float32) error {
+	donation, exists, err := s.GetDonationById(id)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return errors.New("donation not found")
+	}
+
+	if !donation.Crowdfunding {
+		return errors.New("donation not support")
+	}
+
+	donation.ActualCrowdfunding = actualCrowdfunding
+	return s.UpdateDonation(donation)
 }
 
 func (s *Service) GetDonationHonor(user *entities.User) (*entities.DonationHonor, error) {

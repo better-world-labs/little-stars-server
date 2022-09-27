@@ -14,7 +14,9 @@ type VoteService interface {
 
 	ListVoteOptionsRank(voteId int64) ([]*entities.VoteOption, error)
 
-	DoVote(voteId, userId int64, options []int64) error
+	VoteNormal(voteId, userId int64, options []int64) error
+
+	VotePoints(voteId, userId int64, options []int64) error
 
 	GetUserRemainTimes(session *xorm.Session, vote *entities.Vote, userId int64) (int, error)
 }

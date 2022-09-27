@@ -353,6 +353,9 @@ func completeTaskBubble(eventType entities.PointsEventType, userId int64) {
 	case entities.PointsEventTypeDonationAward:
 		taskBubbleId = task_bubble.TaskDonation
 		break
+	case entities.PointsEventTypeFirstEnterCommunity:
+		taskBubbleId = task_bubble.TaskCommunity
+		break
 	}
 
 	if taskBubbleId != 0 {

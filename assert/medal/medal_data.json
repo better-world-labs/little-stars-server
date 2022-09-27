@@ -1,6 +1,6 @@
 [
   {
-    "id": "1",
+    "id": 1,
     "name": "救人一命",
     "activeIcon": "https://openview-oss.oss-cn-chengdu.aliyuncs.com/star-static/%E6%95%91%E4%BA%BA%E4%B8%80%E5%91%BD_small.png",
     "inactiveIcon": "https://openview-oss.oss-cn-chengdu.aliyuncs.com/star-static/%E6%95%91%E4%BA%BA%E4%B8%80%E5%91%BD_unlock_big.png",
@@ -9,7 +9,7 @@
     "order": 0
   },
   {
-    "id": "2",
+    "id": 2,
     "name": "完成捐献",
     "activeIcon": "https://openview-oss.oss-cn-chengdu.aliyuncs.com/star-static/%E5%AE%8C%E6%88%90%E6%8D%90%E7%8C%AE_small.png",
     "inactiveIcon": "https://openview-oss.oss-cn-chengdu.aliyuncs.com/star-static/%E5%AE%8C%E6%88%90%E6%8D%90%E7%8C%AE_unlock_big.png",
@@ -18,7 +18,7 @@
     "order": 1
   },
   {
-    "id": "3",
+    "id": 3,
     "name": "荣誉巡检员",
     "activeIcon": "https://openview-oss.oss-cn-chengdu.aliyuncs.com/star-static/%E8%8D%A3%E8%AA%89%E5%B7%A1%E6%A3%80%E5%91%98.png",
     "inactiveIcon": "https://openview-oss.oss-cn-chengdu.aliyuncs.com/star-static/%E7%BB%84%2038%402x.png",

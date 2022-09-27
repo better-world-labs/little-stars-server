@@ -15,7 +15,7 @@ type UserBaseEvent interface {
 }
 
 type UserEvent struct {
-	Id          int64
+	Id          int64 `xorm:"id pk autoincr"`
 	UserId      int64
 	EventType   entities.UserEventType
 	EventParams []interface{}

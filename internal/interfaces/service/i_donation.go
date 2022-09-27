@@ -29,7 +29,10 @@ type DonationService interface {
 	GetRecordById(recordId int64) (*entities.DonationRecord, bool, error)
 
 	// ListDonation 捐献项目列表
-	ListDonation(query page.Query, userId int64) ([]*entities.Donation, error)
+	ListDonation() ([]*entities.Donation, error)
+
+	// ListDonationSorted 捐献项目列表
+	ListDonationSorted(query page.Query, userId int64) ([]*entities.Donation, error)
 
 	// ListDonorsDonation 根据捐献者查询捐献项目列表
 	ListDonorsDonation(userId int64) ([]*entities.DonationWithUserDonated, error)
@@ -45,10 +48,14 @@ type DonationService interface {
 
 	Apply(apply entities.DonationApply, userId int64) error
 
+	UpdateCrowdfunding(id int64, actualCrowdfunding float32) error
+
 	GetDonationHonor(user *entities.User) (*entities.DonationHonor, error)
 
 	//CountUserRecord 获取用户捐献次数
 	CountUserRecord(userId int64) (int, error)
 
 	StatDonationByUserId(userId int64) (stat entities.DonationStat, err error)
+
+	StatUsersDonations(userIds []int64) (list []*entities.UserDonationPoints, err error)
 }

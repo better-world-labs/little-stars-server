@@ -1,6 +1,8 @@
 package interfaces
 
-import "aed-api-server/internal/pkg/config"
+import (
+	"aed-api-server/internal/server/config"
+)
 
 // 存放 配置相关的结构
 
@@ -14,4 +16,3 @@ func InitConfig(c *config.AppConfig) {
 func GetConfig() *config.AppConfig {
 	return _c
 }
-

@@ -8,6 +8,7 @@ import (
 
 const (
 	UserConfigKeyFirstEnterAEDMap          = "first-enter-aed-map"
+	UserConfigKeyFirstEnterCommunity       = "first-enter-community"
 	UserConfigKeySubscribeOfficialAccounts = "subscribe-official-accounts"
 )
 
@@ -44,14 +45,16 @@ type AccountDTOWithSessionKey struct {
 }
 
 type User struct {
-	ID       int64     `xorm:"id pk autoincr"`
-	Nickname string    `xorm:"nickname"`
-	Uid      string    `xorm:"uid"`
-	Avatar   string    `xorm:"avatar"`
-	Mobile   string    `xorm:"mobile"`
-	Unionid  string    `xorm:"unionid"`
-	Openid   string    `xorm:"openid"`
-	Created  time.Time `xorm:"created"`
+	ID         int64     `xorm:"id pk autoincr"`
+	Nickname   string    `xorm:"nickname"`
+	Uid        string    `xorm:"uid"`
+	Status     int       `xorm:"status"`
+	Avatar     string    `xorm:"avatar"`
+	Mobile     string    `xorm:"mobile"`
+	Unionid    string    `xorm:"unionid"`
+	SessionKey string    `xorm:"session_key"`
+	Openid     string    `xorm:"openid"`
+	Created    time.Time `xorm:"created"`
 }
 
 func (a User) ToSimple() *SimpleUser {
@@ -60,6 +63,10 @@ func (a User) ToSimple() *SimpleUser {
 		Nickname: a.Nickname,
 		Avatar:   a.Avatar,
 	}
+}
+
+func (a User) Available() bool {
+	return a.Avatar != "" || a.Nickname != ""
 }
 
 type Position struct {
@@ -74,7 +81,7 @@ type UserStat struct {
 }
 
 type UserDTO struct {
-	ID       int64  `xorm:"id pk autoincr" json:"id,string"`
+	ID       int64  `xorm:"id pk autoincr" json:"id"`
 	Uid      string `json:"uid"`
 	Nickname string `json:"nickname"`
 	Token    string `xorm:"-" json:"token,omitempty"`
@@ -84,10 +91,17 @@ type UserDTO struct {
 }
 
 type SimpleUser struct {
-	ID       int64  `json:"id,string" xorm:"id"`
+	ID       int64  `json:"id" xorm:"id"`
 	Nickname string `json:"nickname" xorm:"nickname"`
 	Avatar   string `json:"avatarUrl" xorm:"avatar"`
 	Uid      string `json:"uid" xorm:"uid"`
+	Mobile   string `json:"mobile"`
+}
+
+type UserAboutStat struct {
+	UserAboutDonationsCount int `json:"userAboutDonationsCount"`
+	UserAboutFeedsCount     int `json:"userAboutFeedsCount"`
+	UserAboutSosCount       int `json:"userAboutSosCount"`
 }
 
 type SubscribeTemplateSetting struct {
@@ -118,4 +132,8 @@ const (
 	Report_openTreasureChest   = "open-treasure-chest"
 	Report_scanPage            = "scan-page"
 	Report_scanVideo           = "scan-video"
+	Report_feedLike            = "feed-like"
+	Report_feedLikeCancel      = "feed-like-cancel"
+	Report_feedShare           = "feed-shared"
+	Report_viewFeedPage        = "view-feed-page"
 )

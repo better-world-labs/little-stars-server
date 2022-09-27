@@ -53,9 +53,9 @@ func (g *GameImpl) handleGameProcessCompleted(e emitter.DomainEvent) error {
 
 				return nil
 			}
-
-			return g.ProgramNotifyWithoutPoints(evt.UserId)
 		}
+
+		return g.ProgramNotifyWithoutPoints(evt.UserId)
 	}
 
 	return ErrorInvalidEventType
@@ -76,6 +76,8 @@ func (g *GameImpl) handleDeviceClockIn(e emitter.DomainEvent) error {
 				logrus.Errorf("AwardSteps for %d error: %v", evt.CreatedBy, err)
 			}
 		}
+
+		return nil //TODO 注意一下，要 return
 	}
 
 	return ErrorInvalidEventType

@@ -2,8 +2,8 @@ package project
 
 import (
 	"aed-api-server/internal/interfaces"
-	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/db"
+	"aed-api-server/internal/server/config"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

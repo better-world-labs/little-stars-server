@@ -6,5 +6,5 @@ import (
 )
 
 type IDeviceImporter interface {
-	ImportDevices(reader io.Reader) ([]*entities.Device, error)
+	ImportDevices(reader io.Reader) ([]*entities.BaseDevice, error)
 }

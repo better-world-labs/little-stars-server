@@ -2,47 +2,75 @@ package emitter
 
 import (
 	"aed-api-server/internal/pkg/domain/config"
-	"context"
+	"github.com/magiconair/properties"
+	log "github.com/sirupsen/logrus"
 	"sync"
 )
 
+type NewEmitterFunc func(conf interface{}) (Emitter, error)
+
 var (
-	conf        *config.DomainEventConfig
-	emitter     Emitter
-	onceEmitter = sync.Once{}
-	ctx         context.Context
+	emitter       Emitter
+	onceEmitter   = sync.Once{}
+	confMap       = make(map[string]interface{})
+	newEmitterMap = make(map[string]NewEmitterFunc)
 )
 
-func checkAndInit() {
-	if conf == nil {
-		panic("Must set config first")
-	}
+func init() {
+	confMap["domain.event.kafka"] = &config.KafkaConfig{}
+	confMap["domain.event.rocket"] = &config.RocketConf{}
 
-	if ctx == nil {
-		panic("Must set context first")
-	}
+	newEmitterMap["domain.event.kafka"] = NewKafkaEmitter
+	newEmitterMap["domain.event.rocket"] = NewRocketEmitter
+}
 
+func SetConfig(p *properties.Properties) {
 	onceEmitter.Do(func() {
-		e, err := NewKafkaEmitter(ctx, conf)
-		if err != nil {
-			panic(err)
+		for k := range confMap {
+			pro := p.FilterStripPrefix(k + ".")
+			err := pro.Decode(confMap[k])
+			if err == nil {
+				fn := newEmitterMap[k]
+				e, err := fn(confMap[k])
+				if err != nil {
+					panic("init emitter err:" + err.Error())
+				}
+				emitter = e
+				return
+			} else {
+				log.Warnf("cannot init emitter with config:%v", err)
+			}
 		}
-
-		emitter = e
+		panic("do not init emitter with config")
 	})
 }
 
-func SetConfig(c *config.DomainEventConfig) {
-	conf = c
+func SetKafkaDirectly(kafkaConfig *config.KafkaConfig) {
+	onceEmitter.Do(func() {
+		kafkaEmitter, err := NewKafkaEmitter(kafkaConfig)
+		if err != nil {
+			panic("init emitter err:" + err.Error())
+		}
+		emitter = kafkaEmitter
+	})
 }
 
-func SetContext(c context.Context) {
-	ctx = c
+func SetRocketDirectly(conf config.RocketConf) {
+	onceEmitter.Do(func() {
+		kafkaEmitter, err := NewRocketEmitter(conf)
+		if err != nil {
+			panic("init emitter err:" + err.Error())
+		}
+		emitter = kafkaEmitter
+	})
 }
 
 // Start 启动Emitter
 func Start() {
-	checkAndInit()
+	if emitter == nil {
+		panic("must call SetConfig First")
+	}
+
 	emitter.Start()
 }
 
@@ -57,20 +85,18 @@ func Emit(events ...DomainEvent) error {
 // On 开启事件监听
 // @Param evt 空结构体对象，注意不是指针
 // @Param handlers 处理函数
-func On(evt DomainEvent, handlers ...DomainEventHandler) {
-	checkAndInit()
-	emitter.On(evt, handlers...)
+func On(evt DomainEvent, handlers ...DomainEventHandler) Emitter {
+	return emitter.On(evt, handlers...)
 }
 
 // Off 撤销事件监听
 // @Param evt 空结构体对象，注意不是指针
 // @Param handlers 处理函数
-func Off(evt DomainEvent, handlers ...DomainEventHandler) {
+func Off(evt DomainEvent, handlers ...DomainEventHandler) Emitter {
 	if emitter == nil {
 		panic("Must start Emitter first")
 	}
-	checkAndInit()
-	emitter.Off(evt, handlers...)
+	return emitter.Off(evt, handlers...)
 }
 
 func Stop() {

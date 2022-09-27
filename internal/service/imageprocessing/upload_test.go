@@ -2,7 +2,7 @@ package imageprocessing
 
 import (
 	"aed-api-server/internal/interfaces"
-	"aed-api-server/internal/pkg/config"
+	"aed-api-server/internal/server/config"
 	"fmt"
 	"image"
 	"image/draw"

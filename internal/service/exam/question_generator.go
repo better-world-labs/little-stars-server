@@ -44,7 +44,7 @@ func (q *questionGenerator) DoGenerateForMock(questions []*domains2.Question, us
 		return nil, err
 	}
 
-	toBeExcludedSet := utils.NewInt64Set()
+	toBeExcludedSet := utils.NewSet[int64]()
 	toBeExcludedSet.AddAll(toBeExcluded)
 	lenToBeExcluded := len(toBeExcludedSet)
 

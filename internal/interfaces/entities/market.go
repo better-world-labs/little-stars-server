@@ -14,11 +14,13 @@ const (
 )
 
 const (
-	CommodityStatusNotReleased = 0
-	CommodityStatusReleased    = 1
+	CommodityStatusNotReleased CommodityStatus = 0
+	CommodityStatusReleased    CommodityStatus = 1
 )
 
 type (
+	CommodityStatus int
+
 	BaseCommodity struct {
 		Id         int64    `json:"id"`
 		Name       string   `json:"name" binding:"required"`
@@ -33,7 +35,7 @@ type (
 		BaseCommodity `xorm:"extends"`
 
 		CreatedAt global.FormattedTime `json:"createdAt"`
-		Status    int                  `json:"status"`
+		Status    CommodityStatus      `json:"status"`
 	}
 
 	Order struct {

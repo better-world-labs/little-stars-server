@@ -6,7 +6,6 @@ import (
 	"aed-api-server/internal/interfaces/service"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/global"
-	"aed-api-server/internal/pkg/utils"
 	"aed-api-server/internal/service/oss"
 	"aed-api-server/internal/service/project"
 	"bytes"
@@ -15,6 +14,7 @@ import (
 	"fmt"
 	ali "github.com/aliyun/aliyun-oss-go-sdk/oss"
 	log "github.com/sirupsen/logrus"
+	"strconv"
 	"time"
 )
 
@@ -122,9 +122,10 @@ func (s skillService) GenCert(accountID int64, projectID string) (string, string
 		return "", "", err
 	}
 
+	ProjectId, _ := strconv.Atoi(projectID)
 	cert := new(entities.UserCert)
 	cert.AccountId = accountID
-	cert.ProjectId = utils.ToInt(projectID)
+	cert.ProjectId = ProjectId
 	imgs := make(map[string]string)
 	imgs["origin"] = fmt.Sprintf("https://%s/%s", s.Oss.Domain, certImg)
 	imgs["thumbnail"] = fmt.Sprintf("https://%s/%s", s.Oss.Domain, certImg)

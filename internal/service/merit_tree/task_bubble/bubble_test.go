@@ -2,8 +2,8 @@ package task_bubble
 
 import (
 	"aed-api-server/internal/interfaces/events"
-	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/domain/emitter"
+	"aed-api-server/internal/server/config"
 	"context"
 	"gitlab.openviewtech.com/openview-pub/gopkg/log"
 	"testing"

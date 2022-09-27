@@ -74,7 +74,7 @@ func doSendPointsExpiringMsg(userId int64) {
 		"time3": map[string]interface{}{
 			"value": expiredTime.Format("15:04:05"),
 		},
-	})
+	}, "")
 	if err != nil {
 		log.Error("SubscribeMsg.Send error:", err, ",userId=", userId)
 		return
@@ -111,7 +111,7 @@ func sendWalkConvertExpiringMsg() {
 			return
 		}
 
-		todayHasPointFlowUserIdSet := utils.NewInt64Set()
+		todayHasPointFlowUserIdSet := utils.NewSet[int64]()
 		todayHasPointFlowUserIdSet.AddAll(todayHasPointFlowUserIds)
 
 		events, err := interfaces.S.User.BatchGetLastUserEventByType(userIds, entities.UserEventTypeGetWalkStep)
@@ -133,7 +133,7 @@ func sendWalkConvertExpiringMsg() {
 				"time2": map[string]interface{}{
 					"value": "23:59:59",
 				},
-			})
+			}, "")
 			if err != nil {
 				log.Error("Send(user.ID, user.Openid, service.SMkWalkExpiring ... error:", err, ",userId=", u.ID)
 			}

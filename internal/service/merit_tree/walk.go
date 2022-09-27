@@ -12,7 +12,7 @@ import (
 )
 
 type walk struct {
-	Wechat service.IWechat `inject:"-"`
+	User service.UserService `inject:"-"`
 }
 
 //go:inject-component
@@ -30,7 +30,7 @@ type WalkConvert struct {
 }
 
 func (w *walk) getTodayWalk(req *entities.WechatDataDecryptReq) (todayWalk int, err error) {
-	walks, err := w.Wechat.GetWalks(req)
+	walks, err := w.User.GetWalks(req)
 	if err != nil {
 		return 0, err
 	}

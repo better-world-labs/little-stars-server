@@ -14,9 +14,9 @@ import (
 func TestJwt(t *testing.T) {
 	u := uuid.New()
 	fmt.Println(u.ID())
-	expiresIn := 30000
-	id := int64(50)
-	InitJwt("this is a testing key", int64(expiresIn))
+	expiresIn := 99999999999
+	id := int64(71)
+	InitJwt("this is a preview key", int64(expiresIn))
 	fmt.Println(strings.ReplaceAll(uuid.NewString(), "-", ""))
 	newString := uuid.NewString()
 	fmt.Println(base64.StdEncoding.EncodeToString(crypto2.Sha3Hash([]byte(newString))))

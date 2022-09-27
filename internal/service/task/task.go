@@ -4,6 +4,7 @@ import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
+	"aed-api-server/internal/pkg/crypto"
 	"aed-api-server/internal/pkg/db"
 	"aed-api-server/internal/pkg/utils"
 	"fmt"
@@ -83,7 +84,7 @@ func buildKeyHash(userId int64, link string) string {
 	if index != -1 {
 		link = link[0:index]
 	}
-	return utils.Md5(fmt.Sprintf("%v|%s", userId, link))
+	return crypto.Md5(fmt.Sprintf("%v|%s", userId, link))
 }
 
 func (t *Task) genJobByTreasureChest(chest *events.UserOpenTreasureChest) {

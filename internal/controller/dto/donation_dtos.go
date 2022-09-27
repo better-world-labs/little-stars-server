@@ -8,13 +8,14 @@ import (
 
 type (
 	Dto struct {
-		entities.Donation                        //TODO 废弃
-		ProcessPercent    float32                `json:"processPercent"` //TODO 废弃
-		StartAt           global.FormattedTime   `json:"startAt"`        //TODO 废弃
-		CompleteAt        *global.FormattedTime  `json:"completeAt"`     //TODO 废弃
-		ExpiredAt         global.FormattedTime   `json:"expiredAt"`      //TODO 废弃
-		CreatedAt         global.FormattedTime   `json:"createdAt"`      //TODO 废弃
-		Record            map[string]interface{} `json:"record"`
+		entities.Donation                                 //TODO 废弃
+		ProcessPercent             float32                `json:"processPercent"`             //TODO 废弃
+		CrowdFundingProcessPercent float32                `json:"crowdfundingProcessPercent"` //TODO 废弃
+		StartAt                    global.FormattedTime   `json:"startAt"`                    //TODO 废弃
+		CompleteAt                 *global.FormattedTime  `json:"completeAt"`                 //TODO 废弃
+		ExpiredAt                  global.FormattedTime   `json:"expiredAt"`                  //TODO 废弃
+		CreatedAt                  global.FormattedTime   `json:"createdAt"`                  //TODO 废弃
+		Record                     map[string]interface{} `json:"record"`
 	}
 
 	WithDonatedDto struct {
@@ -41,11 +42,12 @@ func DtoFromEntity(donation *entities.Donation) *Dto {
 	}
 
 	dto := Dto{
-		Donation:       *donation,
-		StartAt:        global.FormattedTime(donation.StartAt),
-		ExpiredAt:      global.FormattedTime(donation.ExpiredAt),
-		CreatedAt:      global.FormattedTime(donation.CreatedAt),
-		ProcessPercent: donation.GetProcessPercents(),
+		Donation:                   *donation,
+		StartAt:                    global.FormattedTime(donation.StartAt),
+		ExpiredAt:                  global.FormattedTime(donation.ExpiredAt),
+		CreatedAt:                  global.FormattedTime(donation.CreatedAt),
+		ProcessPercent:             donation.GetProcessPercents(),
+		CrowdFundingProcessPercent: donation.GetCrowdfundingProcessPercents(),
 	}
 	if donation.CompleteAt != nil {
 		completeAt := global.FormattedTime(*donation.CompleteAt)

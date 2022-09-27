@@ -126,12 +126,12 @@ func (p *positionService) UpdatePositionHeat(userId int64, hashId uint64) error 
 
 func (p *positionService) UpdateAllPositionHeat() error {
 	return db.Transaction(func(db *xorm.Session) error {
-		_, err := db.SQL(`delete * from user_position_heat`).Exec()
+		_, err := db.Exec(`delete from user_position_heat`)
 		if err != nil {
 			return err
 		}
 
-		_, err = db.SQL(`
+		_, err = db.Exec(`
 			insert into user_position_heat (user_id, hash_id, heat, heat_updated_at)
 			select
 				user_id,
@@ -142,7 +142,7 @@ func (p *positionService) UpdateAllPositionHeat() error {
 			WHERE
 				created_at > TIMESTAMPADD(day,?,CURRENT_DATE)
 			group by user_id, hash_id
-		`, -HeatStatPeriod).Exec()
+		`, -HeatStatPeriod)
 		return err
 	})
 }

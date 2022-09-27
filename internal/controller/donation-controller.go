@@ -8,6 +8,7 @@ import (
 	"aed-api-server/internal/pkg"
 	page "aed-api-server/internal/pkg/query"
 	"aed-api-server/internal/pkg/response"
+	"aed-api-server/internal/pkg/utils"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"gitlab.openviewtech.com/openview-pub/gopkg/route"
@@ -42,10 +43,22 @@ func (c DonationController) MountNoAuthRouter(r *route.Router) {
 
 func (c DonationController) MountAdminRouter(r *route.Router) {
 	donationGroup := r.Group("/donations")
-	donationGroup.POST("", c.AdminCreateDonation)
+	donationGroup.GET("", c.AdminListDonations)
 	donationGroup.GET("/:id", c.AdminGetDonation)
+	donationGroup.POST("", c.AdminCreateDonation)
+	r.PUT("/donations/:id/crowdfunding", c.AdminUpdateCrowdfunding)
 }
 
+func (c DonationController) AdminListDonations(ctx *gin.Context) (interface{}, error) {
+	donations, err := interfaces.S.Donation.ListDonation()
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"donations": dto2.DtosFromEntities(donations),
+	}, nil
+}
 func (c DonationController) ListDonations(ctx *gin.Context) (interface{}, error) {
 	var p page.Query
 	err := ctx.ShouldBindQuery(&p)
@@ -60,7 +73,7 @@ func (c DonationController) ListDonations(ctx *gin.Context) (interface{}, error)
 		userId = user.ID
 	}
 
-	donations, err := interfaces.S.Donation.ListDonation(p, userId)
+	donations, err := interfaces.S.Donation.ListDonationSorted(p, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +231,7 @@ func (c DonationController) GetDonationEvidence(ctx *gin.Context) (interface{}, 
 
 	return dto2.EvidenceDto{
 		ViewLink:         link,
-		EvidenceImageUrl: fmt.Sprintf("%s/api/image-processing/resource/evidence?accountId=%d&category=3&businessKey=%d", c.ServerDomain, latest.UserId, latest.Id),
+		EvidenceImageUrl: fmt.Sprintf("https://%s/api/image-processing/resource/evidence?accountId=%d&category=3&businessKey=%d", c.ServerDomain, latest.UserId, latest.Id),
 	}, nil
 }
 
@@ -275,4 +288,26 @@ func (c DonationController) DonationHonor(ctx *gin.Context) (interface{}, error)
 	}
 
 	return honor, nil
+}
+
+func (c DonationController) AdminUpdateCrowdfunding(ctx *gin.Context) (interface{}, error) {
+	var param struct {
+		ActualCrowdfunding float32 `json:"actualCrowdfunding" binding:"required"`
+	}
+
+	id, err := utils.GetContextPathParamInt64(ctx, "id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ctx.ShouldBindJSON(&param); err != nil {
+		return nil, err
+	}
+
+	err = interfaces.S.Donation.UpdateCrowdfunding(id, param.ActualCrowdfunding)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }

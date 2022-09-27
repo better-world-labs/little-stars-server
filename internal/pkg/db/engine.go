@@ -8,6 +8,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/go-xorm/xorm"
 	log "github.com/sirupsen/logrus"
+	"reflect"
 	"strings"
 	"xorm.io/core"
 )
@@ -78,6 +79,19 @@ func Table(table string) *xorm.Session {
 
 func SQL(query interface{}, args ...interface{}) *xorm.Session {
 	return engine.SQL(query, args...)
+}
+
+type NameMap map[string]interface{}
+
+var NameMapType = reflect.TypeOf(&NameMap{}).Elem()
+
+func Sqlx(sql string, args ...interface{}) *xorm.Session {
+	if len(args) == 1 && reflect.TypeOf(args[0]) == NameMapType {
+		sql, args = MustNamed(sql, args[0])
+	} else {
+		sql, args = MustIn(sql, args...)
+	}
+	return engine.SQL(sql, args...)
 }
 
 func Exec(sqlOrArgs ...interface{}) (sql.Result, error) {

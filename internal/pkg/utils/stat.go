@@ -8,6 +8,6 @@ import (
 func TimeStat(processName string) func() {
 	beginTime := time.Now()
 	return func() {
-		log.Debugf("stat <%s> process use time:%v\n", processName, time.Now().Sub(beginTime))
+		log.Infof("stat <%s> process use time:%v\n", processName, time.Now().Sub(beginTime))
 	}
 }

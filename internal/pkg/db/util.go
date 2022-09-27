@@ -1,17 +1,22 @@
 package db
 
-import "bytes"
+import (
+	"github.com/jmoiron/sqlx"
+)
 
-func ParamPlaceHolder(len int) string {
-	b := bytes.Buffer{}
-	b.WriteString("(")
-	for i := 0; i < len; i++ {
-		b.WriteString("?")
-		if i < len-1 {
-			b.WriteString(",")
-		}
+func MustNamed(inputSql string, arg interface{}) (sql string, args []interface{}) {
+	var err error
+	sql, args, err = sqlx.Named(inputSql, arg)
+	if err != nil {
+		panic(err.Error())
 	}
+	return MustIn(sql, args...)
+}
 
-	b.WriteString(")")
-	return b.String()
+func MustIn(sql string, args ...interface{}) (string, []interface{}) {
+	sql, args, err := sqlx.In(sql, args...)
+	if err != nil {
+		panic(err.Error())
+	}
+	return sql, args
 }

@@ -18,9 +18,17 @@ func (q *Query) GetLimit() (int, int) {
 	return (q.Page - 1) * q.Size, q.Size
 }
 
-type Result struct {
-	Total int         `json:"total"`
-	List  interface{} `json:"list"`
+type Result[T any] struct {
+	Total int `json:"total"`
+	List  []T `json:"list"`
+}
+
+func NewResult[T any](list []T, total int) Result[T] {
+	if list == nil {
+		list = make([]T, 0)
+	}
+
+	return Result[T]{List: list, Total: total}
 }
 
 func BindPageQuery(c *gin.Context) (*Query, error) {

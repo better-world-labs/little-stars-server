@@ -30,6 +30,9 @@ const (
 
 	TaskDonation     = -6
 	TaskDonationName = "捐献积分"
+
+	TaskCommunity     = -7
+	TaskCommunityName = "有奖活动"
 )
 
 type TreeTaskBubble struct {
@@ -125,6 +128,7 @@ func (*BubbleDefine) Listen(on facility.OnEvent) {
 		&ReadNews{},
 		&NearbyAED{},
 		&AidLearning{},
+		&EnterCommunity{},
 	)
 
 	for _, def := range defines {

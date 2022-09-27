@@ -2,8 +2,8 @@ package server
 
 import (
 	"aed-api-server/internal/middleware"
-	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/response"
+	"aed-api-server/internal/server/config"
 	"github.com/gin-gonic/gin"
 	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 )
@@ -44,10 +44,6 @@ func initRouter(c *config.AppConfig) {
 
 	route.SetJsonResponseHandlerFailed(func(ctx *gin.Context, body interface{}, err error) {
 		response.ReplyErrorWithData(ctx, err, body)
-	})
-
-	noAuthGroup.GET("/health-check", func(c *gin.Context) {
-		c.Writer.WriteHeader(200)
 	})
 
 	for _, instance := range component.GetInstances() {

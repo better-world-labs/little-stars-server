@@ -2,7 +2,7 @@ package command
 
 import (
 	"aed-api-server/internal/interfaces"
-	"aed-api-server/internal/pkg/config"
+	"aed-api-server/internal/server/config"
 	"gitlab.openviewtech.com/openview-pub/gopkg/inject"
 )
 

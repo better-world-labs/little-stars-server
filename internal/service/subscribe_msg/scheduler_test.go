@@ -2,8 +2,8 @@ package subscribe_msg
 
 import (
 	"aed-api-server/internal/interfaces"
-	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/pkg/db"
+	"aed-api-server/internal/server/config"
 	"aed-api-server/internal/service/point"
 	"aed-api-server/internal/service/user"
 	"gitlab.openviewtech.com/openview-pub/gopkg/log"

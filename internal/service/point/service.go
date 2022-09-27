@@ -3,19 +3,24 @@ package point
 import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/pkg/db"
+	page "aed-api-server/internal/pkg/query"
 	"aed-api-server/internal/pkg/response"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/go-xorm/xorm"
+	"go.uber.org/zap/buffer"
 	"time"
 )
 
 type FlowStatus int8
 
 const (
-	pointFlowTableName = "point_flow"
-	FlowStatusInit     = 0
-	FlowStatusPecked   = 1
-	FlowCut            = 1
+	pointFlowTableName      = "point_flow"
+	FlowStatusInit          = 0
+	FlowStatusPecked        = 1
+	FlowCut                 = 1
+	DefaultExpiresInSeconds = 30 * 24 * 3600
 )
 
 type Point struct {
@@ -309,6 +314,44 @@ func (service) GetUsersPeriodIncomePoints(userIds []int64, beginTime time.Time, 
 	return m, nil
 }
 
+func (s service) Pay(userId int64, points int, description string) error {
+	if points < 0 {
+		return errors.New("invalid points for paying")
+	}
+
+	return s.AddPoint(userId, -points, description, entities.PointsEventTypeTransaction)
+}
+
+func (s service) PageAwardFlow() (page.Result[entities.UserPointsFlow], error) {
+	return page.NewResult[entities.UserPointsFlow](nil, 0), nil
+}
+
+func (s service) DealPoint(userId int64, points int, description string, eventType entities.PointsEventType, autoReceive bool) error {
+	return db.Transaction(func(session *xorm.Session) error {
+		flow := Flow{
+			UserId:          userId,
+			PointsEventType: eventType,
+			Params:          "{}",
+			PeckExpiredAt:   time.Now().Add(DefaultExpiresInSeconds * time.Second),
+			Points:          points,
+			Description:     description,
+			CreatedAt:       time.Now(),
+		}
+
+		if autoReceive {
+			flow.Status = FlowCut
+			flow.PeckedAt = time.Now()
+		}
+
+		_, err := session.Table(pointFlowTableName).Insert(flow)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
 func (s service) AddPoint(userId int64, points int, description string, eventType entities.PointsEventType) error {
 	return db.Transaction(func(session *xorm.Session) error {
 		total, err := s.GetUserTotalPointsForUpdate(session, userId)
@@ -316,25 +359,11 @@ func (s service) AddPoint(userId int64, points int, description string, eventTyp
 			return err
 		}
 
-		if total+points < 0 {
+		if points < 0 && total+points < 0 {
 			return response.ErrorInsufficientBalance
 		}
 
-		_, err = session.Table(pointFlowTableName).Insert(Flow{
-			Status:          FlowCut,
-			UserId:          userId,
-			PointsEventType: eventType,
-			Params:          "{}",
-			PeckExpiredAt:   time.Now(),
-			PeckedAt:        time.Now(),
-			Points:          points,
-			Description:     description,
-			CreatedAt:       time.Now(),
-		})
-		if err != nil {
-			return err
-		}
-		return nil
+		return s.DealPoint(userId, points, description, eventType, true)
 	})
 }
 
@@ -441,4 +470,48 @@ func (s service) TotalPoints(accountID int64) (float64, error) {
 	total, err := sess.Where("account_id = ?", accountID).Sum(table, "points")
 
 	return float64(total), err
+}
+
+func (s service) PageAwardPointFLows(query page.Query, filter entities.AwardFlowQueryCommand) (page.Result[*entities.AwardPointFlow], error) {
+	columns := "id,user_id,created_at,peck_expired_at,pecked_at,status,abs(points) points,description, IF(points<0,'out','in') as direction"
+	where := buffer.Buffer{}
+	where.AppendString(" points_event_type = 66")
+
+	var param []interface{}
+	if filter.UserId > 0 {
+		where.AppendString(" and user_id = ?")
+		param = append(param, filter.UserId)
+	}
+
+	if filter.Keyword != "" {
+		where.AppendString(" and `description` like concat(?,'%')")
+		param = append(param, filter.Keyword)
+	}
+
+	switch filter.Direction {
+	case "in":
+		where.AppendString(" and points > 0")
+
+	case "out":
+		where.AppendString(" and points < 0")
+	}
+
+	count, err := db.Table("point_flow").Cols("id").Where(where.String(), param...).Count()
+	if err != nil {
+		return page.Result[*entities.AwardPointFlow]{}, err
+	}
+
+	var res []*entities.AwardPointFlow
+
+	param = append(param, (query.Page-1)*query.Size, query.Size)
+	err = db.SQL(fmt.Sprintf("select %s from point_flow where %s order by created_at desc limit ?,?", columns, where.String()), param...).Find(&res)
+	if err != nil {
+		return page.Result[*entities.AwardPointFlow]{}, err
+	}
+
+	if err != nil {
+		return page.Result[*entities.AwardPointFlow]{}, err
+	}
+
+	return page.NewResult(res, int(count)), nil
 }

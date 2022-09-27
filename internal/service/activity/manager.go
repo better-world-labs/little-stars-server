@@ -5,7 +5,6 @@ import (
 	"aed-api-server/internal/interfaces/events"
 	"aed-api-server/internal/pkg/global"
 	"encoding/json"
-	"strconv"
 	"time"
 )
 
@@ -15,7 +14,7 @@ func CreateActivityVolunteerNotified(event *events.VolunteerNotifiedEvent) *enti
 		HelpInfoID: event.Aid,
 		Class:      ClassVolunteerNotified,
 		Record: map[string]interface{}{
-			"aid":   strconv.FormatInt(event.Aid, 10),
+			"aid":   event.Aid,
 			"count": event.Count,
 		},
 		Created: global.FormattedTime(time.Now()),

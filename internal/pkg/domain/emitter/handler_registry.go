@@ -85,3 +85,11 @@ func (k *HandlerRegistry) Delete(evt DomainEvent, handler DomainEventHandler) {
 		}
 	}
 }
+
+func (k *HandlerRegistry) GetEventTypes() []string {
+	types := make([]string, 0, len(k.keepers))
+	for t := range k.keepers {
+		types = append(types, t)
+	}
+	return types
+}

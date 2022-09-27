@@ -3,6 +3,7 @@ package service
 import (
 	"aed-api-server/internal/interfaces/entities"
 	"aed-api-server/internal/interfaces/events"
+	page "aed-api-server/internal/pkg/query"
 )
 
 // UserService 用户服务
@@ -15,10 +16,21 @@ type UserService interface {
 
 	ListAllUsers() ([]*entities.UserDTO, error)
 
+	PageUsers(query page.Query, keyword string) (page.Result[*entities.SimpleUser], error)
+
 	StatUser() (entities.UserStat, error)
 
 	// GetUserById 根据ID读取某个用户
 	GetUserById(id int64) (*entities.SimpleUser, bool, error)
+
+	Code2Session(code string) (*entities.WechatCode2SessionRes, error)
+
+	// GetWalks  读取近一个月月的步数
+	GetWalks(req *entities.WechatDataDecryptReq) (*entities.WechatWalkData, error)
+
+	GetUserInfoByOpenid(id string) (*entities.User, error)
+
+	GetUserInfo(id int64) (*entities.User, error)
 
 	// GetUserByOpenid 根据ID读取某个用户
 	GetUserByOpenid(openid string) (*entities.SimpleUser, bool, error)
@@ -48,4 +60,10 @@ type UserService interface {
 	UpdatePosition(position *entities.Position) error
 
 	ParseInfoFromJwtToken(token string) (*entities.User, error)
+
+	GetUserAboutStat(id int64) (*entities.UserAboutStat, error)
+
+	GetUserEncryptKey(id int64, version int) (*entities.WechatEncryptKey, error)
+
+	GetUserByUid(uid string) (*entities.SimpleUser, error)
 }

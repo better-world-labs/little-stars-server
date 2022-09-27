@@ -1,6 +1,8 @@
 package claim
 
-import "aed-api-server/internal/interfaces"
+import (
+	"aed-api-server/internal/interfaces"
+)
 
 type AedCert struct {
 	User   string `json:"user"`

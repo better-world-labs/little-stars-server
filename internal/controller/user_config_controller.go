@@ -4,7 +4,6 @@ import (
 	"aed-api-server/internal/interfaces"
 	"aed-api-server/internal/pkg"
 	"aed-api-server/internal/pkg/global"
-	"errors"
 	"github.com/gin-gonic/gin"
 	"gitlab.openviewtech.com/openview-pub/gopkg/route"
 )
@@ -15,21 +14,6 @@ type UserConfigController struct {
 //go:inject-component
 func UserNewConfigController() *UserConfigController {
 	return &UserConfigController{}
-}
-
-var UserSupportedKeys = []string{
-	"DEVICE_PICKET",
-	"STUDY",
-	"subscribe-official-accounts",
-}
-
-func userKeyValidator(key string) bool {
-	for _, it := range UserSupportedKeys {
-		if it == key {
-			return true
-		}
-	}
-	return false
 }
 
 func (c UserConfigController) MountAuthRouter(r *route.Router) {
@@ -44,10 +28,6 @@ func (c UserConfigController) MountAuthRouter(r *route.Router) {
 func GetConfigV2(c *gin.Context) (interface{}, error) {
 	userId := c.MustGet(pkg.AccountIDKey).(int64)
 	key := c.Query("key")
-
-	if !userKeyValidator(key) {
-		return nil, errors.New("key not support")
-	}
 
 	config, err := interfaces.S.UserConfig.GetConfig(userId, key)
 	if err != nil {
@@ -68,9 +48,6 @@ func (UserConfigController) PutConfig(c *gin.Context) (interface{}, error) {
 	userId := c.MustGet(pkg.AccountIDKey).(int64)
 	key := c.Query("key")
 
-	if !userKeyValidator(key) {
-		return nil, errors.New("key only support DEVICE_PICKET、STUDY")
-	}
 	data, err := c.GetRawData()
 	if err != nil {
 		return nil, err
@@ -85,10 +62,6 @@ func (UserConfigController) PutConfig(c *gin.Context) (interface{}, error) {
 func (UserConfigController) GetConfig(c *gin.Context) (interface{}, error) {
 	userId := c.MustGet(pkg.AccountIDKey).(int64)
 	key := c.Query("key")
-
-	if !userKeyValidator(key) {
-		return nil, errors.New("key only support DEVICE_PICKET、STUDY")
-	}
 
 	config, err := interfaces.S.UserConfig.GetConfig(userId, key)
 	if err != nil {

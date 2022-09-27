@@ -7,7 +7,7 @@ import (
 )
 
 type HelpInfo struct {
-	*location.Coordinate `xorm:"extends"`
+	location.Coordinate `xorm:"extends"`
 
 	ID            int64     `xorm:"id pk autoincr" json:"id"`
 	Address       string    `xorm:"address" json:"address"`
@@ -16,6 +16,8 @@ type HelpInfo struct {
 	PublishTime   time.Time `xorm:"publish_time" json:"publishTime"`
 	Images        []string  `xorm:"images" json:"images"`
 	Exercise      bool      `xorm:"exercise" json:"exercise"`
+	Practice      bool      `xorm:"practice" json:"practice"`
+	NpcId         *int64    `xorm:"npc_id" json:"npcId,omitempty"`
 }
 
 type PublishDTO struct {
@@ -29,21 +31,7 @@ type PublishDTO struct {
 type ActionDTO struct {
 	*location.Coordinate
 
-	AidID string `json:"aidId"`
-}
-
-func FromImageModel(model *HelpImage) string {
-	return model.Origin
-}
-
-func FromImageModels(models []*HelpImage) []string {
-	dtos := make([]string, len(models))
-
-	for i := range models {
-		dtos[i] = FromImageModel(models[i])
-	}
-
-	return dtos
+	AidID int64 `json:"aidId"`
 }
 
 type DTO struct {
@@ -60,7 +48,7 @@ type HelpInfoComposedDTO struct {
 }
 
 type NewestActivityDTO struct {
-	ID       int64                `json:"id,string"`
+	ID       int64                `json:"id"`
 	UserName string               `json:"userName"`
 	Class    string               `json:"class"`
 	Record   interface{}          `json:"record,omitempty"`
@@ -70,7 +58,7 @@ type NewestActivityDTO struct {
 type HelpInfoDTO struct {
 	location.Coordinate
 
-	ID              int64    `json:"id,string"`
+	ID              int64    `json:"id"`
 	Address         string   `json:"address"`
 	DetailAddress   string   `json:"detailAddress"`
 	PublishTime     string   `json:"publishTime"`
@@ -78,22 +66,10 @@ type HelpInfoDTO struct {
 	PublisherMobile string   `json:"publisherMobile"`
 	Images          []string `json:"images"`
 	Exercise        bool     `json:"exercise"`
+	Practice        bool     `json:"practice"`
+	NpcId           *int64   `json:"npcId,omitempty"`
 }
 
 type Call120RequestDto struct {
 	MobileLast4 string `json:"mobileLast4"`
-}
-
-type HelpImage struct {
-	ID         int64     `xorm:"id pk autoincr"`
-	HelpInfoID int64     `xorm:"help_info_id index"`
-	Origin     string    `xorm:"origin"`
-	Thumbnail  string    `xorm:"thumbnail"`
-	Created    time.Time `xorm:"created"`
-}
-
-type HelpInfoImaged struct {
-	*HelpInfo
-
-	images []*HelpImage
 }

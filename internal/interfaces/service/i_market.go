@@ -6,7 +6,7 @@ type MarketService interface {
 	CreateCommodity(commodity entities.Commodity) error
 	CommodityStandBy(id int64) error
 	ListCommodities() ([]*entities.Commodity, error)
-	ListCommoditiesByStatus(status int) ([]*entities.Commodity, error)
+	ListCommoditiesByStatus(size int, status entities.CommodityStatus) ([]*entities.Commodity, error)
 	GetCommodityById(id int64) (*entities.Commodity, bool, error)
 	Buy(commodityId, userId int64) (*entities.Order, error)
 

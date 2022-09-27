@@ -75,13 +75,28 @@ func (c *EssayController) Create(ctx *gin.Context) (interface{}, error) {
 }
 
 func (c *EssayController) List(ctx *gin.Context) (interface{}, error) {
-	list, err := c.Essay.List()
-	if err != nil {
-		return nil, err
+	essays := make([]*entities.Essay, 0)
+	var err error
+
+	if sizeQuery, exists := ctx.GetQuery("size"); exists {
+		size, err := strconv.Atoi(sizeQuery)
+		if err != nil {
+			return nil, err
+		}
+
+		essays, err = c.Essay.ListLimit(size)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		essays, err = c.Essay.List()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return map[string]interface{}{
-		"essays": parseEssayList(list)}, nil
+		"essays": parseEssayList(essays)}, nil
 }
 
 func (c *EssayController) Delete(ctx *gin.Context) (interface{}, error) {

@@ -16,6 +16,12 @@ func Authorize(c *gin.Context) {
 		return
 	}
 
+	if user.Status != 0 {
+		response.HTTPComplete(c, 403, response.NewResponse(-1, "帐号状态异常", nil))
+		c.Abort()
+		return
+	}
+
 	c.Set(pkg.AccountIDKey, user.ID)
 	c.Set(pkg.AccountKey, user)
 	c.Next()

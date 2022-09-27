@@ -8,6 +8,7 @@ import (
 	"aed-api-server/internal/pkg/db"
 	page "aed-api-server/internal/pkg/query"
 	"aed-api-server/internal/pkg/utils"
+	"aed-api-server/internal/pkg/wx_crypto"
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -19,6 +20,13 @@ type Service struct {
 	facility.Sender `inject:"sender"`
 	position
 	TreasureChest service2.TreasureChestService `inject:"-"`
+	Donation      service2.DonationService      `inject:"-"`
+	Aid           service2.AidService           `inject:"-"`
+	Feed          service2.IFeed                `inject:"-"`
+	Wechat        service2.IWechat              `inject:"-"`
+	User          service2.UserServiceOld       `inject:"-"`
+
+	Encrypt *CryptKeyCache `inject:"-"`
 }
 
 //go:inject-component
@@ -26,6 +34,22 @@ func NewService() *Service {
 	return &Service{
 		position: &positionService{},
 	}
+}
+
+func (*Service) PageUsers(query page.Query, keyword string) (page.Result[*entities.SimpleUser], error) {
+	where := "nickname like concat(?,'%') or mobile like concat(?,'%') or uid like concat(?,'%')"
+	count, err := db.Table("account").Where(where, keyword, keyword, keyword).Count()
+	if err != nil {
+		return page.Result[*entities.SimpleUser]{}, err
+	}
+
+	var res []*entities.SimpleUser
+	err = db.Table("account").Where(where, keyword, keyword, keyword).Limit(query.Size, (query.Page-1)*query.Size).Find(&res)
+	if err != nil {
+		return page.Result[*entities.SimpleUser]{}, err
+	}
+
+	return page.NewResult(res, int(count)), nil
 }
 
 func (*Service) ListAllUsers() ([]*entities.UserDTO, error) {
@@ -95,6 +119,20 @@ func (*Service) GetUserById(id int64) (*entities.SimpleUser, bool, error) {
 	return &account, exists, nil
 }
 
+func (*Service) GetUserInfoByOpenid(openid string) (*entities.User, error) {
+	var account entities.User
+	exists, err := db.Table("account").Where("openid = ?", openid).Get(&account)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		return nil, nil
+	}
+
+	return &account, nil
+}
+
 func (*Service) GetUserByOpenid(openid string) (*entities.SimpleUser, bool, error) {
 	var account entities.SimpleUser
 	exists, err := db.Table("account").Where("openid = ?", openid).Get(&account)
@@ -113,7 +151,7 @@ func (s *Service) RecordUserEvent(userId int64, eventType entities.UserEventType
 		CreatedAt:   time.Now(),
 	}
 
-	_, err := db.Insert("user_event_record", event)
+	_, err := db.Insert("user_event_record", &event)
 
 	if err != nil {
 		log.Error("RecordUserEvent err:", err)
@@ -127,14 +165,19 @@ func (s *Service) RecordUserEvent(userId int64, eventType entities.UserEventType
 
 func (*Service) BatchGetLastUserEventByType(userIds []int64, eventType entities.UserEventType) (map[int64]*events.UserEvent, error) {
 	var eventList []*events.UserEvent
-
-	err := db.SQL(fmt.Sprintf(`
-		select * from (select * from user_event_record
-        where user_id in %s
-		and event_type = ?
-        order by created_at desc) a
+	sql := `
+		select * from (
+			select * 
+			from user_event_record
+        	where user_id in (?)
+				and event_type = ?
+        	order by created_at desc
+		) a
 		group by user_id
-    `, db.ParamPlaceHolder(len(userIds))), db.TupleOf(userIds, eventType)...).Find(&eventList)
+    `
+	sql, args := db.MustIn(sql, userIds, eventType)
+
+	err := db.SQL(sql, args...).Find(&eventList)
 
 	r := make(map[int64]*events.UserEvent)
 	for _, e := range eventList {
@@ -162,6 +205,18 @@ func (*Service) GetLastUserEventByType(userId int64, eventType entities.UserEven
 		return nil, nil
 	}
 	return &event, nil
+}
+
+func (*Service) GetUserInfo(userId int64) (*entities.User, error) {
+	var user entities.User
+	existed, err := db.Table("account").Where("id = ?", userId).Get(&user)
+	if err != nil {
+		return nil, err
+	}
+	if !existed {
+		return nil, errors.New("user not existed")
+	}
+	return &user, nil
 }
 
 func (*Service) GetUserOpenIdById(userId int64) (string, error) {
@@ -225,6 +280,9 @@ func (s *Service) DealUserReportEvents(userId int64, key string, params []interf
 		case entities.Report_enterAedMap:
 			dealUserEnterAEDMap(userId)
 
+		case entities.Report_viewFeedPage:
+			dealUserEnterCommunity(userId)
+
 		case entities.Report_readNews:
 			dealUserReadNews(userId)
 
@@ -284,4 +342,105 @@ func (*Service) ParseInfoFromJwtToken(token string) (*entities.User, error) {
 		return nil, errors.New("invalid token")
 	}
 	return &acc, nil
+}
+
+func (s *Service) GetWalks(req *entities.WechatDataDecryptReq) (*entities.WechatWalkData, error) {
+	session, err := s.Code2Session(req.Code)
+	if err != nil {
+		return nil, err
+	}
+
+	var data entities.WechatWalkData
+	b, err := wx_crypto.Decrypt(req.EncryptedData, req.Iv, session.SessionKey, &data)
+
+	log.Infof("GetWalks: walkData=%s", string(b))
+	return &data, err
+}
+
+func (s *Service) Code2Session(code string) (*entities.WechatCode2SessionRes, error) {
+	session, err := s.Wechat.CodeToSession(code)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := s.GetUserInfoByOpenid(session.Openid)
+	if err != nil {
+		return nil, err
+	}
+
+	if user != nil {
+		user.SessionKey = session.SessionKey
+		if err := s.User.UpdateUserInfo(user); err != nil {
+			return nil, err
+		}
+	}
+
+	return session, nil
+}
+func (s *Service) GetUserEncryptKey(id int64, version int) (*entities.WechatEncryptKey, error) {
+	key, err := s.Encrypt.GetKey(id, version)
+	if err != nil {
+		return nil, err
+	}
+
+	if key != nil {
+		return key, nil
+	}
+
+	user, err := s.GetUserInfo(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	encryptKey, err := s.Wechat.GetUserEncryptKey(user.Openid, user.SessionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	key = entities.GetEncryptKey(encryptKey, version)
+	if key == nil {
+		return nil, errors.New("encrypt key not found")
+	}
+
+	err = s.Encrypt.PutKeys(user.ID, encryptKey)
+	return key, err
+}
+
+func (s *Service) GetUserAboutStat(id int64) (*entities.UserAboutStat, error) {
+	all, err := utils.PromiseAll(func() (interface{}, error) {
+		return s.Donation.StatDonationByUserId(id)
+	}, func() (interface{}, error) {
+		return s.Aid.CountHelpInfosAboutMe(id)
+	}, func() (interface{}, error) {
+		return s.Feed.GetMyFeedsCount(id)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &entities.UserAboutStat{
+		UserAboutDonationsCount: all[0].(entities.DonationStat).DonationProjectCount,
+		UserAboutSosCount:       int(all[1].(int64)),
+		UserAboutFeedsCount:     all[2].(int),
+	}, nil
+}
+
+func (s *Service) GetUserByUid(uid string) (*entities.SimpleUser, error) {
+	if uid == "" {
+		return nil, nil
+	}
+	var user entities.SimpleUser
+	has, err := db.Table("account").Where("uid = ?", uid).Get(&user)
+	if err != nil {
+		return nil, err
+	}
+	if has {
+		return &user, nil
+	}
+	return nil, nil
 }

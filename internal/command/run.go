@@ -1,8 +1,8 @@
 package command
 
 import (
-	"aed-api-server/internal/pkg/config"
 	"aed-api-server/internal/server"
+	config2 "aed-api-server/internal/server/config"
 	"github.com/gin-gonic/gin"
 	"github.com/magiconair/properties"
 	"github.com/urfave/cli/v2"
@@ -16,7 +16,7 @@ func Run(context *cli.Context) error {
 	baseDir := context.String("b")
 	env := context.String("e")
 	println("env:", env)
-	c, p, err := config.LoadConfigX(baseDir, env)
+	c, p, err := config2.LoadConfigX(baseDir, env)
 	if err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func Run(context *cli.Context) error {
 	return nil
 }
 
-func StartServer(c *config.AppConfig, p *properties.Properties) {
+func StartServer(c *config2.AppConfig, p *properties.Properties) {
 	gin.SetMode(gin.ReleaseMode)
 	eng := gin.New()
 	server.SetGin(eng)
@@ -40,7 +40,7 @@ func StartServer(c *config.AppConfig, p *properties.Properties) {
 	go server.Start()
 }
 
-func LoadComponents(c *config.AppConfig, component *inject.Component) {
+func LoadComponents(c *config2.AppConfig, component *inject.Component) {
 	loadFacility(component)
 	loadServices(c, component)
 	autoLoad(component)
